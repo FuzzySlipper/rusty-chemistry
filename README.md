@@ -4,6 +4,12 @@ A minimal Rusty Engine product: C# owns a counter, a DOM button sends an
 `increment` intent, and Engine transports the counter projection to the UI.
 The packaged Engine owns the host, input, update loop, and browser shell.
 
+This repository is becoming a lab for a voxel chemistry kernel
+([docs/chemistry.md](docs/chemistry.md)). The Engine-free kernel lives in
+`src/RustyChemistry/`, and its headless checks run with
+`dotnet run -c Release --project tests/ChemistryKernel`. The counter product
+below is still the template's until the sandbox replaces it.
+
 ## Setup
 
 Engine pairs target Linux x64 and Windows x64. Install the .NET 10 SDK, `curl`
