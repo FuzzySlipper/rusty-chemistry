@@ -329,6 +329,9 @@ Questions for the wardens-circuit author, not ours to settle:
 4. **Engine request** for voxel detachment: rusty-engine #10291. Impact
    readouts turned out to exist already.
 5. **craftsurvive adapters**: voxel, ambient, entity and physics bridges.
+   Started as rusty-craftsurvive campaign #10292. Its first slice (#10293)
+   covers the field around the player, weather as ambient, grass fire and
+   budgeted write-back.
 
 Open questions:
 
@@ -398,6 +401,11 @@ Known limits of this first cut:
   edge behind. The field keeps no policy of its own about what stays loaded.
 - A cell changes identity at most once per step. Emitter shapes are spheres
   and boxes.
+- A chunk sleeps once a step changes nothing by more than each quantity's
+  epsilon. A slow relaxation (a low `settle`, a slow reaction) whose
+  per-step change drops below epsilon therefore stops where it is. Give such
+  a quantity a small enough epsilon. craftsurvive's moisture evaporation
+  needed 1e-4.
 - Transforms keep a cell's quantities except those they `set`. Loading a cell
   resets them to the material's initial values.
 
