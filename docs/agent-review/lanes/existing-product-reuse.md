@@ -4,9 +4,10 @@
 introduce competing state or behavior?
 
 Start with `AGENTS.md` and `docs/architecture.md`, then search the implementation
-and callers. The template's counter domain owns its value; the product entry
-owns lifecycle composition; the DOM only displays facts. Customize those owner
-pointers as the product grows.
+and callers. The kernel's field owns every cell's identity and quantities;
+the voxel mirror and overlay only draw them; the product entry owns lifecycle
+composition and the step pacing; the DOM only displays facts and claims
+commands.
 
 An actionable finding names the existing type/member, the new duplicate at
 file/line, the overlapping authority, and the callers or invariant that now

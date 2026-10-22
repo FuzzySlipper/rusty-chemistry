@@ -1,0 +1,60 @@
+// The physical pack: fire through grass, leaves and wood; water that wets and quenches; buoyant smoke
+// that pools under roofs and vents to the open sky; charge that runs through water; a blast front that
+// clears soft cover. Rules name properties, never pairs of objects (docs/chemistry.md).
+{
+  "quantities": [
+    { "id": "heat", "ambient": 20, "min": -50, "max": 1500, "settle": 0.05, "epsilon": 0.01, "transfer": { "rate": 3 } },
+    { "id": "moisture", "max": 1, "settle": 0.01, "epsilon": 0.001, "transfer": { "rate": 0.2 } },
+    { "id": "smoke", "max": 10, "epsilon": 0.001, "transfer": { "rate": 1, "drift": true, "rise": 0.5 } },
+    { "id": "fuel" },
+    { "id": "charge", "max": 100, "settle": 2, "epsilon": 0.01 },
+    { "id": "blast", "max": 100, "settle": 5, "epsilon": 0.01 }
+  ],
+  "materials": [
+    { "id": "air", "sky": true, "conduct": { "heat": 0.05, "smoke": 1, "moisture": 0.1, "blast": 1 } },
+    { "id": "stone", "conduct": { "heat": 0.02 } },
+    { "id": "dirt", "conduct": { "heat": 0.02, "moisture": 0.3 } },
+    { "id": "grass", "sky": true, "conduct": { "heat": 0.1, "smoke": 0.5, "moisture": 0.5, "blast": 0.8 }, "initial": { "fuel": 6 } },
+    { "id": "burning-grass", "sky": true, "conduct": { "heat": 0.1, "smoke": 0.5, "moisture": 0.5, "blast": 0.8 } },
+    { "id": "ash", "sky": true, "conduct": { "heat": 0.05, "smoke": 0.5, "moisture": 0.5, "blast": 1 } },
+    { "id": "leaves", "sky": true, "conduct": { "heat": 0.1, "smoke": 0.6, "moisture": 0.5, "blast": 0.6 }, "initial": { "fuel": 4 } },
+    { "id": "burning-leaves", "sky": true, "conduct": { "heat": 0.1, "smoke": 0.6, "moisture": 0.5, "blast": 0.6 } },
+    { "id": "wood", "conduct": { "heat": 0.06, "moisture": 0.2, "blast": 0.5 }, "initial": { "fuel": 30 } },
+    { "id": "burning-wood", "conduct": { "heat": 0.06, "smoke": 0.5, "moisture": 0.2, "blast": 0.5 } },
+    { "id": "charcoal", "conduct": { "heat": 0.04, "moisture": 0.2, "blast": 0.5 } },
+    { "id": "water", "sky": true, "conduct": { "heat": 0.3, "moisture": 1, "charge": 0.9, "blast": 1 }, "initial": { "moisture": 1 } }
+  ],
+  "reactions": [
+    { "id": "combustion", "in": ["burning-grass", "burning-leaves"], "rate": 1, "modulator": "fire",
+      "consumes": { "fuel": 1 }, "produces": { "heat": 1200, "smoke": 2 } },
+    { "id": "smoulder", "in": ["burning-wood"], "rate": 0.4, "modulator": "fire",
+      "consumes": { "fuel": 1 }, "produces": { "heat": 1000, "smoke": 3 } },
+    { "id": "smoke-vents", "when": [{ "open": true }], "rate": 0.3, "per": "smoke", "consumes": { "smoke": 1 } },
+    { "id": "water-wets", "in": ["water"], "rate": 5, "produces": { "moisture": 1 } },
+    { "id": "quench", "in": ["water"], "when": [{ "quantity": "heat", "atLeast": 30 }], "rate": 2, "per": "heat",
+      "consumes": { "heat": 1 } },
+    { "id": "drying", "when": [{ "quantity": "heat", "atLeast": 100 }], "rate": 0.1, "consumes": { "moisture": 1 } },
+    { "id": "blast-flash", "when": [{ "quantity": "blast", "atLeast": 20 }], "rate": 10, "per": "blast",
+      "produces": { "heat": 1 } }
+  ],
+  "transforms": [
+    { "id": "ignite-grass", "from": ["grass"], "to": "burning-grass", "chance": 3,
+      "when": [{ "quantity": "heat", "atLeast": 250 }, { "quantity": "moisture", "atMost": 0.2 }] },
+    { "id": "ignite-leaves", "from": ["leaves"], "to": "burning-leaves", "chance": 3,
+      "when": [{ "quantity": "heat", "atLeast": 250 }, { "quantity": "moisture", "atMost": 0.2 }] },
+    { "id": "ignite-wood", "from": ["wood"], "to": "burning-wood", "chance": 1,
+      "when": [{ "quantity": "heat", "atLeast": 300 }, { "quantity": "moisture", "atMost": 0.2 }] },
+    { "id": "strike-grass", "from": ["grass"], "to": "burning-grass", "when": [{ "quantity": "charge", "atLeast": 20 }] },
+    { "id": "strike-leaves", "from": ["leaves"], "to": "burning-leaves", "when": [{ "quantity": "charge", "atLeast": 20 }] },
+    { "id": "strike-wood", "from": ["wood"], "to": "burning-wood", "when": [{ "quantity": "charge", "atLeast": 20 }] },
+    { "id": "douse-grass", "from": ["burning-grass"], "to": "grass", "when": [{ "quantity": "moisture", "atLeast": 0.5 }] },
+    { "id": "douse-leaves", "from": ["burning-leaves"], "to": "leaves", "when": [{ "quantity": "moisture", "atLeast": 0.5 }] },
+    { "id": "douse-wood", "from": ["burning-wood"], "to": "wood", "when": [{ "quantity": "moisture", "atLeast": 0.5 }] },
+    { "id": "burn-out", "from": ["burning-grass", "burning-leaves"], "to": "ash", "when": [{ "quantity": "fuel", "atMost": 0 }] },
+    { "id": "char", "from": ["burning-wood"], "to": "charcoal", "when": [{ "quantity": "fuel", "atMost": 0 }] },
+    { "id": "blast-clears", "from": ["grass", "burning-grass", "ash", "leaves", "burning-leaves"], "to": "air",
+      "when": [{ "quantity": "blast", "atLeast": 30 }] },
+    { "id": "blast-breaks", "from": ["wood", "burning-wood", "charcoal"], "to": "air",
+      "when": [{ "quantity": "blast", "atLeast": 35 }] }
+  ]
+}

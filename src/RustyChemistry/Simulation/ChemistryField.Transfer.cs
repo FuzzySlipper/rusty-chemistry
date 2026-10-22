@@ -29,7 +29,7 @@ public sealed partial class ChemistryField
         {
             TransferDefinition? transfer = Pack.Quantities[quantity].Transfer;
             float diffusion = transfer is null ? 0f : transfer.Rate * Modulation(transfer.Modulator) * seconds;
-            Vector3 carried = transfer?.Drift == true ? drift : Vector3.Zero;
+            Vector3 carried = (transfer?.Drift == true ? drift : Vector3.Zero) + (Vector3.UnitY * (transfer?.Rise ?? 0f));
             int current = quantity;
             EmitterSpec[] gathering = [.. emitters.Values.Select(emitter => emitter.Spec)
                 .Where(spec => spec.Quantity == current && spec.Gather != 0f)];
@@ -199,7 +199,7 @@ public sealed partial class ChemistryField
     /// <summary>A difference in hold across a face closes it: the edge of a held region confines what is inside.</summary>
     private static float HoldFactor(float a, float b) => 1f - Math.Min(1f, Math.Abs(a - b));
 
-    /// <summary>The velocity across a face along its axis, in cells per second: the drift plus any gathering.</summary>
+    /// <summary>The velocity across a face along its axis, in cells per second: drift and rise, plus any gathering.</summary>
     private static float FaceVelocity(Vector3 point, int axis, TransferPass pass)
     {
         float velocity = Component(pass.Carried, axis);

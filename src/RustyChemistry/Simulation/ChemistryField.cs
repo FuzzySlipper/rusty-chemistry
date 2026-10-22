@@ -17,6 +17,9 @@ namespace RustyChemistry.Simulation;
 /// </summary>
 public sealed partial class ChemistryField
 {
+    /// <summary>The edge length of a chunk: the field loads, wakes and sleeps cells in cubes this many across.</summary>
+    public const int ChunkSize = FieldChunk.Size;
+
     /// <summary>Steps without change before an active chunk sleeps.</summary>
     private const int SleepAfterQuietSteps = 4;
 
@@ -244,6 +247,54 @@ public sealed partial class ChemistryField
             }
         }
     }
+
+    /// <summary>
+    /// Re-marks sky exposure down one column of loaded cells, as <see cref="MarkOpenColumns"/> does for all of
+    /// them: after an identity in it changed whether the sky passes. Only chunks whose exposure changed wake.
+    /// </summary>
+    public void MarkOpenColumn(int x, int z)
+    {
+        int localX = x & FieldChunk.Mask;
+        int localZ = z & FieldChunk.Mask;
+        bool open = true;
+        foreach (FieldChunk chunk in chunks.Where(chunk => chunk.Key.X == x >> FieldChunk.Shift && chunk.Key.Z == z >> FieldChunk.Shift)
+            .OrderByDescending(chunk => chunk.Key.Y))
+        {
+            bool changed = false;
+            for (int y = FieldChunk.Mask; y >= 0; y--)
+            {
+                int index = FieldChunk.Index(localX, y, localZ);
+                open &= sky[chunk.Materials[index]];
+                changed |= chunk.Open[index] != open;
+                chunk.Open[index] = open;
+            }
+
+            if (changed)
+            {
+                chunk.Wake();
+            }
+        }
+    }
+
+    /// <summary>The first cell of every loaded chunk, in chunk order.</summary>
+    public IEnumerable<Cell> LoadedChunks() => chunks.Select(chunk => chunk.CellAt(0));
+
+    /// <summary>Whether the chunk holding the cell is loaded and still changing; a sleeping chunk's cells hold still.</summary>
+    public bool IsActive(Cell cell) => chunkMap.TryGetValue(ChunkKey.Of(cell), out FieldChunk? chunk) && chunk.Active;
+
+    /// <summary>
+    /// Copies the values of a quantity in the loaded chunk holding the cell, indexed x + 16y + 256z from the
+    /// chunk's first cell: a bulk read for presentation.
+    /// </summary>
+    public void ReadChunk(Cell cell, int quantity, Span<float> values)
+    {
+        CheckQuantity(quantity);
+        FieldChunk chunk = Loaded(cell, out _);
+        chunk.Values.AsSpan(quantity * CellCount, CellCount).CopyTo(values);
+    }
+
+    /// <summary>Copies the materials of the loaded chunk holding the cell, indexed as <see cref="ReadChunk"/>.</summary>
+    public void ReadChunkMaterials(Cell cell, Span<ushort> materials) => Loaded(cell, out _).Materials.CopyTo(materials);
 
     public float Ambient(int quantity)
     {

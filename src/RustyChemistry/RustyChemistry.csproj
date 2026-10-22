@@ -11,5 +11,8 @@
     <Deterministic>true</Deterministic>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <RootNamespace>RustyChemistry</RootNamespace>
+    <!-- Every cell runs through the step's loops, and unoptimized they are about eight times slower:
+         `rusty dev` builds Debug, so the kernel is optimized in every configuration. -->
+    <Optimize>true</Optimize>
   </PropertyGroup>
 </Project>

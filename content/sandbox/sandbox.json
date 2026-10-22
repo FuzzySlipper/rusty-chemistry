@@ -1,0 +1,37 @@
+{
+  "pack": "chemistry/physical.json",
+  "seed": 7,
+  "materials": {
+    "stone": { "color": "#7d7a75" },
+    "dirt": { "color": "#6b4f35" },
+    "grass": { "color": "#5d9a3c" },
+    "burning-grass": { "color": "#e8702c", "emission": "#ff6a1f", "emissionIntensity": 4 },
+    "ash": { "color": "#3b3936" },
+    "leaves": { "color": "#3f7a32" },
+    "burning-leaves": { "color": "#f08a2e", "emission": "#ff7a24", "emissionIntensity": 4 },
+    "wood": { "color": "#8a6038" },
+    "burning-wood": { "color": "#d0501e", "emission": "#ff5a14", "emissionIntensity": 3 },
+    "charcoal": { "color": "#24201d" },
+    "water": { "color": "#3a6fbf", "alpha": 0.45, "passable": true }
+  },
+  "overlays": [
+    { "quantity": "smoke", "label": "Smoke", "color": "#6b6b6b", "low": 0.05, "high": 3 },
+    { "quantity": "heat", "label": "Heat", "color": "#ff3a12", "low": 60, "high": 800 },
+    { "quantity": "moisture", "label": "Moisture", "color": "#3a8cff", "low": 0.1, "high": 1 },
+    { "quantity": "charge", "label": "Charge", "color": "#ffe14a", "low": 0.5, "high": 40 },
+    { "quantity": "blast", "label": "Blast", "color": "#ffffff", "low": 1, "high": 40 }
+  ],
+  "tools": [
+    { "id": "torch", "label": "Torch", "at": "hit",
+      "emit": { "quantity": "heat", "radius": 1.2, "rate": 4000, "seconds": 0.6 } },
+    { "id": "water", "label": "Water", "at": "hit",
+      "emit": { "quantity": "moisture", "radius": 2.5, "rate": 3, "seconds": 1 } },
+    { "id": "lightning", "label": "Lightning", "at": "hit",
+      "discharge": { "quantity": "charge", "amount": 80, "minConductance": 0.5, "maxCells": 4000 } },
+    { "id": "blast", "label": "Blast", "at": "above",
+      "front": { "quantity": "blast", "amplitude": 100, "speed": 30, "attenuation": 0.25, "maxDistance": 10 } },
+    { "id": "smoke", "label": "Smoke bomb", "at": "above",
+      "emit": { "quantity": "smoke", "radius": 1.5, "rate": 15, "seconds": 3 } }
+  ],
+  "windSpeed": 0.6
+}

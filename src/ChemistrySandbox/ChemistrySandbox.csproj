@@ -8,23 +8,25 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <Deterministic>true</Deterministic>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <RustyEngineProductEntryType>RustyTemplate.Game.RustyTemplateProduct</RustyEngineProductEntryType>
-    <RustyEngineProductId>rusty-template</RustyEngineProductId>
-    <RustyEngineProductTitle>Rusty Template</RustyEngineProductTitle>
+    <RustyEngineProductEntryType>ChemistrySandbox.SandboxProduct</RustyEngineProductEntryType>
+    <RustyEngineProductId>rusty-chemistry</RustyEngineProductId>
+    <RustyEngineProductTitle>Chemistry Sandbox</RustyEngineProductTitle>
     <RustyEngineProductUiRoot>$(MSBuildProjectDirectory)/../ui</RustyEngineProductUiRoot>
     <RustyEngineProductUiEntry>main.js</RustyEngineProductUiEntry>
     <RustyEngineProductContentRoot>$(MSBuildProjectDirectory)/../../content</RustyEngineProductContentRoot>
-    <RustyEngineProductUiProjectionStream>rusty-template</RustyEngineProductUiProjectionStream>
-    <RustyEngineProductUiProjectionContract>rusty.template.counter</RustyEngineProductUiProjectionContract>
+    <RustyEngineProductUiProjectionStream>chemistry-sandbox</RustyEngineProductUiProjectionStream>
+    <RustyEngineProductUiProjectionContract>rusty.chemistry.sandbox</RustyEngineProductUiProjectionContract>
     <RustyEngineProductLifecycleMode>realtime</RustyEngineProductLifecycleMode>
     <RustyEngineProductFixedStepHz>60</RustyEngineProductFixedStepHz>
     <RustyEngineProductFixedStepMaxCatchUpSteps>4</RustyEngineProductFixedStepMaxCatchUpSteps>
     <RustyEngineProductInputCursorMode>unlocked</RustyEngineProductInputCursorMode>
-    <RustyEngineWatchPaths>$(MSBuildProjectDirectory);$(RustyEngineProductUiRoot);$(RustyEngineProductContentRoot)</RustyEngineWatchPaths>
+    <RustyEngineProductDefaultWorldLights>neutral</RustyEngineProductDefaultWorldLights>
+    <RustyEngineWatchPaths>$(MSBuildProjectDirectory);$(MSBuildProjectDirectory)/../RustyChemistry;$(RustyEngineProductUiRoot);$(RustyEngineProductContentRoot)</RustyEngineWatchPaths>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Rusty.Engine" Version="[$(RustyEnginePackageVersion)]" />
-    <RustyEngineProductInputIntent Include="increment" Value="digital" />
+    <ProjectReference Include="../RustyChemistry/RustyChemistry.csproj" />
+    <RustyEngineProductInputIntent Include="sandbox.command" Value="payload:rusty.chemistry.command.v1" />
   </ItemGroup>
 </Project>

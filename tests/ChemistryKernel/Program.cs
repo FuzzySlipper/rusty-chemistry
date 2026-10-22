@@ -175,6 +175,28 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
     Check.That(downwind > 2 * upwind, $"wind must carry smoke downwind (down {downwind}, up {upwind})");
 }
 
+// --- rise: buoyant smoke climbs a shaft and pools under its roof, without being made or lost ----
+{
+    ChemistryPack rising = ChemistryPack.Read(Packs.Rise);
+    int plume = rising.Quantity("smoke");
+    ChemistryField shaft = new(rising, new("stone"));
+    shaft.Fill(new(1, 1, 1), new(3, 12, 3), rising.Material("air"));
+    shaft.Fill(new(1, 13, 1), new(3, 13, 3), rising.Material("stone"));
+    shaft.Fill(new(1, 14, 1), new(3, 15, 3), rising.Material("air"));
+    shaft.MarkOpenColumns();
+    shaft.SetQuantity(new(2, 1, 2), plume, 10f);
+    Run(shaft, 150);
+    float top = Box(new(1, 10, 1), new(3, 12, 3)).Sum(cell => shaft.Quantity(cell, plume));
+    float bottom = Box(new(1, 1, 1), new(3, 3, 3)).Sum(cell => shaft.Quantity(cell, plume));
+    Check.That(top > 4 * bottom, $"rising smoke must pool under the roof (top {top}, bottom {bottom})");
+    Check.Near((float)shaft.Total(plume), 10f, 0.01f, "rise must move smoke, not make or lose it");
+
+    Check.That(!shaft.IsOpen(new(2, 12, 2)) && shaft.IsOpen(new(2, 14, 2)), "a roofed shaft is not open to the sky");
+    shaft.Load(new(2, 13, 2), rising.Material("air"));
+    shaft.MarkOpenColumn(2, 2);
+    Check.That(shaft.IsOpen(new(2, 12, 2)) && !shaft.IsOpen(new(1, 12, 1)), "opening the roof opens only its column");
+}
+
 // --- gather: an inward emitter concentrates without creating ----------------------------------
 {
     ChemistryField field = new(fire, new("stone"));

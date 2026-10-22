@@ -48,6 +48,19 @@ internal static class Packs
     }
     """;
 
+    /// <summary>Buoyant smoke in a stone shaft: it rises and pools under whatever roofs it.</summary>
+    internal const string Rise = """
+    {
+      "quantities": [
+        { "id": "smoke", "epsilon": 0.0001, "transfer": { "rate": 0.5, "rise": 0.6 } }
+      ],
+      "materials": [
+        { "id": "air", "sky": true, "conduct": { "smoke": 1 } },
+        { "id": "stone" }
+      ]
+    }
+    """;
+
     /// <summary>Charge that discharges through water, and a blast front that crosses air and brush but not stone.</summary>
     internal const string Impulse = """
     {

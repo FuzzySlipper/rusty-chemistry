@@ -14,9 +14,10 @@ public sealed record QuantityDefinition(string Id, float Ambient, float Min, flo
 /// <summary>
 /// How a quantity moves between face neighbours: diffusion at <see cref="Rate"/> per second, scaled by the
 /// lower conductance of the two cells; with <see cref="Drift"/>, also carried by the field's drift (wind).
+/// <see cref="Rise"/> carries it upward at that many cells per second (downward when negative): buoyancy.
 /// A difference in <see cref="BlockedBy"/> across a face closes it: the edge of a held region confines.
 /// </summary>
-public sealed record TransferDefinition(float Rate, bool Drift, int? BlockedBy, int? Modulator);
+public sealed record TransferDefinition(float Rate, bool Drift, int? BlockedBy, int? Modulator, float Rise = 0f);
 
 /// <summary>
 /// A cell identity. <see cref="Conductance"/> (0..1 per quantity) is how readily each quantity passes into

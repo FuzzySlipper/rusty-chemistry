@@ -3,7 +3,7 @@
 > The product decides. The Engine guarantees.
 
 ```text
-Counter state and policy (C#)
+Chemistry kernel (Engine-free C#) -> sandbox adapters and policy (C#)
   -> Rusty.Engine safe SDK
   -> SDK-generated bind entry point and ABI
   -> packaged Rust host, input, UI transport, and browser shell
@@ -14,11 +14,14 @@ Counter state and policy (C#)
 
 | Path or service | Responsibility |
 | --- | --- |
-| `src/RustyTemplate.Game/Counter/CounterState.cs` | Counter value, increment saturation, and reset policy |
-| `src/RustyTemplate.Game/RustyTemplateProduct.cs` | Lifecycle callbacks, semantic input interpretation, and counter projection |
-| `src/RustyTemplate.Game/RustyTemplate.Game.csproj` | Explicit product entry, content/UI roots, intents, and host defaults |
-| `src/ui/main.js` | DOM button/label, intent submission, projection subscription, and UI cleanup |
-| `content/` | Product-authored data |
+| `src/RustyChemistry/` | The chemistry kernel: pack reader, field, step, emitters, discharges, fronts |
+| `src/ChemistrySandbox/SandboxProduct.cs` | Lifecycle, step pacing on admitted time, input and command interpretation, debug commands, panel projection |
+| `src/ChemistrySandbox/Arena/` | The arena's layout, and the voxel mirror that writes identity changes back as Engine voxel edits |
+| `src/ChemistrySandbox/Overlay/` | Drawing one quantity as per-chunk meshes |
+| `src/ChemistrySandbox/Tools/`, `Viewing/`, `Setup/`, `Ui/` | Tools, the orbit camera and picking, typed sandbox content, the panel contract |
+| `src/ChemistrySandbox/ChemistrySandbox.csproj` | Explicit product entry, content/UI roots, the command intent, and host defaults |
+| `src/ui/main.js` | DOM panel, command claims, projection subscription, and UI cleanup |
+| `content/` | The physical pack and the sandbox's looks, overlays, tools and wind |
 | Engine SDK/runtime | Generated interop, admitted updates/input, retained UI transport, host, renderer, and browser shell |
 
 ## Lifecycle and data flow
@@ -28,14 +31,16 @@ entry point. The bind checks
 the SDK/runtime ABI identity and constructs the product with
 `ProductCreateContext`. The product opens its UI stream through `IEngineContext.Ui`.
 
-Engine calls `Start` and admits `ProductUpdate` callbacks. The DOM button
-submits the declared `increment` intent. C# interprets active direct-digital
-input, updates its counter, and publishes a typed `UiValue`. The DOM observes
-that projection and displays its number; it holds no authoritative counter.
+Engine calls `Start` and admits `ProductUpdate` callbacks. Each update
+interprets pointer and keyboard input (camera, picking, tool keys) and panel
+commands (the `sandbox.command` payload intent), then steps the field for the
+admitted simulation time, at most three steps. Each step's identity changes
+become voxel edits and the overlay redraws the chunks that changed. C#
+publishes a `UiValue` for the panel, which holds no authoritative state.
 
-Engine owns pause/resume/restart/shutdown admission. Product callbacks apply
-local policy, such as resetting the counter on restart. Disposal releases the
-UI stream. Resource lifetimes and admitted update facts remain Engine-owned.
+Engine owns pause/resume/restart/shutdown admission. Restart rebuilds the
+arena. Disposal releases the overlay meshes, voxel scene, camera and UI
+stream. Resource lifetimes and admitted update facts remain Engine-owned.
 
 ## Build and host
 

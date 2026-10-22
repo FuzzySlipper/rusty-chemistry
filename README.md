@@ -1,14 +1,14 @@
-# Rusty Template
+# Rusty Chemistry
 
-A minimal Rusty Engine product: C# owns a counter, a DOM button sends an
-`increment` intent, and Engine transports the counter projection to the UI.
-The packaged Engine owns the host, input, update loop, and browser shell.
-
-This repository is becoming a lab for a voxel chemistry kernel
+A lab for a modular, Breath-of-the-Wild-style chemistry kernel on voxel cells
 ([docs/chemistry.md](docs/chemistry.md)). The Engine-free kernel lives in
 `src/RustyChemistry/`, and its headless checks run with
-`dotnet run -c Release --project tests/ChemistryKernel`. The counter product
-below is still the template's until the sandbox replaces it.
+`dotnet run -c Release --project tests/ChemistryKernel`.
+
+The product is a sandbox: a voxel arena running the kernel's physical pack,
+where you light grass, douse it, strike the pond with lightning, blast the
+shed and watch the smoke. The packaged Engine owns the host, input, update
+loop and browser shell. The repository started from rusty-template.
 
 ## Setup
 
@@ -35,7 +35,8 @@ rusty install
 rusty dev --port 8787
 ```
 
-Open the URL printed by the host. The Increment button changes the counter.
+Open the URL printed by the host. Pick a tool in the panel and click the
+arena; the panel lists the camera controls.
 `rusty dev` runs the pinned pair's runtime: CoreCLR loads the product, and
 changes to declared C#, UI, or content inputs rebuild and reload it. See
 `rusty dev --help` for `--bind-host`, `--live-debug`, and `--debugger`.
@@ -68,9 +69,11 @@ rusty build --aot
 
 | Path | Responsibility |
 | --- | --- |
-| `src/RustyTemplate.Game/` | Ordinary safe C# product, counter state, and product metadata |
-| `src/ui/main.js` | DOM presentation and semantic input |
-| `content/` | Product-authored content root |
+| `src/RustyChemistry/` | Engine-free chemistry kernel: pack reader, field, step |
+| `src/ChemistrySandbox/` | The sandbox product: arena, voxel mirror, overlay, tools, camera |
+| `src/ui/main.js` | DOM panel: tool, overlay and wind choices, field controls and stats |
+| `content/` | The physical pack and the sandbox's looks, overlays and tools |
+| `tests/ChemistryKernel/` | Headless checks of the kernel's operators |
 | `Directory.Build.props` | Matched Engine SDK/runtime pin and default product project |
 | `docs/architecture.md` | Current ownership and data flow |
 | `docs/ui.md` | DOM companion contract |
@@ -80,21 +83,6 @@ The SDK generates the product's bind entry point inside its ordinary build;
 there is no composition project. The Engine runtime supplies the host and
 browser shell. Product metadata, input intents, content/UI
 roots, and projection identity live in the ordinary `.csproj`.
-
-## Start a product from this template
-
-1. Rename the C# directory/project, namespace, and entry type together, and use
-   the new project path in `<RustyEngineProject>` in `Directory.Build.props`.
-2. Set the product ID/title and UI projection stream/contract in the project
-   file. Keep the C# stream/contract constants aligned. Define semantic intents
-   there and keep their C#/DOM callers aligned.
-3. Replace the counter domain and DOM UI with the product's behavior. Add
-   authored data under `content/` and load it through Engine services. Keep
-   documentation outside `src/ui/`; every file there is staged as a web asset.
-4. Customize `AGENTS.md` and the architecture owner map for the actual product.
-   Add a Den project or donor contract only if the new project uses one.
-5. Keep the generic review lanes, adding concrete owner pointers and relevant
-   task-specific questions as described in [the review guide](docs/agent-review/README.md).
 
 Read [AGENTS.md](AGENTS.md) before extending the product. Keep instructions
 about current behavior and ownership; exact dependency identities belong in

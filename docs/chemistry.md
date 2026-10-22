@@ -91,7 +91,7 @@ A pack declares:
   "quantities": [
     { "id": "heat", "ambient": 20, "min": -50, "max": 1500, "settle": 0.05, "epsilon": 0.01,
       "transfer": { "rate": 3 } },
-    { "id": "smoke", "max": 10, "transfer": { "rate": 2, "drift": true } },
+    { "id": "smoke", "max": 10, "transfer": { "rate": 2, "drift": true, "rise": 0.5 } },
     { "id": "fuel" }
   ],
   "materials": [
@@ -142,7 +142,9 @@ and rule, so a field replays identically.
 
 Transfer is explicit diffusion. Per face, the coefficient is the quantity's
 rate × the lower of the two cells' conductances × any modulator. Drift is
-upwind advection. Each is clamped to 1/12 of a cell's value per face per step,
+upwind advection: the field's wind for quantities marked `drift`, plus the
+quantity's own `rise` (buoyancy, upward in cells per second, or downward when
+negative), so smoke climbs and pools under whatever roofs it. Each is clamped to 1/12 of a cell's value per face per step,
 so a cell's faces can never take more than it holds. Transfer therefore stays
 stable and non-negative, and is deliberately slow: at the default 0.1 s step,
 drift tops out around 0.8 cells/s. Fast movement (blasts, gusts) is a front's
@@ -209,7 +211,9 @@ player, an active spell) and maps each block to a material when loading.
   flight, smoke) are never voxel state.
 - **Sky exposure** is a cell flag. `MarkOpenColumns` derives it from
   materials' `sky` for loaded columns, and an adapter that knows better (an
-  unloaded roof overhead) sets it directly. A reaction on open cells drains
+  unloaded roof overhead) sets it directly. When a transform changes whether
+  a cell lets the sky through (a blasted roof), the adapter calls
+  `MarkOpenColumn` for that column. A reaction on open cells drains
   smoke, so **enclosed spaces fill with smoke and open ground clears it with
   no room detection at all.**
 - **Entities** don't live in the field. The entity bridge samples the cells an
@@ -313,7 +317,8 @@ Questions for the wardens-circuit author, not ours to settle:
 1. **Kernel**: operators, rules reader, step, active set, emitters, with
    focused headless checks (`tests/ChemistryKernel`). *Done; see below.*
 2. **Sandbox here**: an Engine voxel arena, a debug overlay, and the physical
-   pack: grass fire, a smoky cave, water dousing, a shock in a puddle.
+   pack: grass fire, a smoky cave, water dousing, a shock in a puddle. *Done;
+   see [sandbox as built](#sandbox-as-built).*
 3. **Q90 pack**: six channels and the Emperor toggle, the brief's feel test,
    on the same kernel with no kernel change.
 4. **Engine request** for voxel detachment and impact readouts, after
@@ -336,6 +341,15 @@ Open questions:
 - `Content/`: definitions and the strict JSON reader.
 - `Simulation/`: the field, its chunks, emitters, fronts and events.
 
+Adapters read the field in bulk: `LoadedChunks` lists chunk origins,
+`IsActive` says whether a chunk is still changing (a sleeping chunk's values
+hold still), and `ReadChunk` and `ReadChunkMaterials` copy a chunk's values
+or materials, indexed x + 16y + 256z.
+
+The kernel project is compiled optimized in every configuration. Its loops
+run over every cell of every active chunk and are about eight times slower
+unoptimized, and `rusty dev` builds Debug.
+
 The kernel works in cell space. Emitter shapes, drift and front speed are in
 cells and cells per second; `CellAt` and `WorldCenter` convert using the
 settings' cell size and origin. Events are lists that the next `Step`
@@ -348,6 +362,7 @@ packs:
 - fire spreading, stopping at stone and burning out;
 - hysteresis;
 - smoke trapped indoors and venting outdoors;
+- buoyant smoke pooling under a roof, and a roof opening only its column;
 - discharge limited to a connected puddle;
 - a front bending around a wall;
 - Confine and Bind;
@@ -361,9 +376,9 @@ dotnet run -c Release --project tests/ChemistryKernel
 ```
 
 The checks end by timing a 64×64 meadow fire on a stone floor: 16 chunks, all
-active while it burns. In Release on the development machine it takes about
-3.4 ms per step, so about 34 ms per simulated second at 10 Hz. That is a
-record, not a gate.
+active while it burns. On the development machine it takes about 1.7 ms per
+step, so about 17 ms per simulated second at 10 Hz. That is a record, not a
+gate.
 
 Known limits of this first cut:
 
@@ -375,3 +390,77 @@ Known limits of this first cut:
   and boxes.
 - Transforms keep a cell's quantities except those they `set`. Loading a cell
   resets them to the material's initial values.
+
+## Sandbox as built
+
+`src/ChemistrySandbox/` is the Engine product (`rusty dev`). It draws a
+64×32×64 arena one voxel per cell and steps the field on the Engine's admitted
+simulation time, at most three steps per update. Time beyond those is
+dropped, not owed.
+
+- `Arena/ArenaLayout.cs` builds the field. It has a meadow on dirt and
+  bedrock, plus a set piece for each behaviour the pack should show:
+  - a stone path three cells wide, as a firebreak;
+  - a pond and a separate puddle;
+  - a stone hut with a doorway and a wood campfire inside;
+  - a wooden shed;
+  - trees of wood and leaves.
+- `Arena/VoxelMirror.cs` gives each material with a look a voxel slot and
+  writes each step's `MaterialChanges` back as voxel edits.
+- `Overlay/QuantityOverlay.cs` shows one quantity as vertex-coloured cubes,
+  one mesh per field chunk, rebuilt only when that chunk's values change by a
+  display level:
+  - in open cells, cubes grow with the value;
+  - around opaque voxels, a tinted shell shows the value inside;
+  - inside translucent voxels (water), cubes are opaque, so they draw the same
+    under the surface in every chunk.
+- `Tools/ToolBelt.cs` turns a click into an emitter, a discharge or a front.
+- `Viewing/OrbitCamera.cs` orbits, pans and zooms, and turns the cursor into
+  a pick ray for `Spatial.PickVoxel`.
+- `Ui/` and `src/ui/main.js` form the panel. It chooses the tool, overlay and
+  wind, pauses, steps or resets the field, and shows step cost and material
+  counts.
+
+Content is in two files. `content/chemistry/physical.json` is the pack.
+`content/sandbox/sandbox.json` holds each material's colour, emission and
+translucency, the overlays' colours and ranges, the tools' parameters and the
+wind speed.
+
+Live-debug commands act on exact cells, for agents and playtests:
+
+- `sandbox.use <tool> x y z` uses a tool on a cell;
+- `sandbox.cell x y z` reads its material, sky exposure and quantities;
+- `sandbox.stats` reports the step, activity, cost and material counts.
+
+The `rusty-chemistry-hosted` playtest profile starts a private host per
+session from `.den-serve.json`.
+
+What the first playtest showed, on the development machine:
+
+- **Grass fire** spreads and burns to ash. It stops at the stone path, and
+  the wet pond shore resists it.
+- **Water** douses the cells it reaches. A fire front already past the splash
+  keeps going.
+- **The hut** fills with smoke from the campfire: about 2.1 under the roof,
+  0.5 at mid-height and 0.2 in the doorway, against about 0.005 outside.
+- **A lightning strike** on the pond charges the whole pond (53.6 per cell).
+  The separate puddle and the dry shore stay at 0.
+- **A blast** on the shed roof breaks one roof cell and opens its column to
+  the sky. A fire lit inside then vents through the hole.
+- **An east wind** leans every smoke plume toward +X.
+- **Cost:** during a large burn, 18 active chunks cost about 20 ms per step.
+  That is about five times the headless meadow per chunk, and the cause isn't
+  profiled yet. Rise isn't it: headless, it adds under 10%. The host also
+  shares the machine with its renderer. This is the first thing to profile
+  if adapters need more.
+- **Content bug found:** `burning-wood` didn't conduct smoke, so its smoke
+  stayed inside it, capped at the maximum. A rule producing a transferring
+  quantity in a material that can't pass it on is easy to write. The reader
+  could warn about it.
+
+Limits:
+
+- Smoke inside the hut is invisible from outside, so the readings come from
+  `sandbox.cell`. A cutaway view would show it.
+- Nothing here moves bodies yet. Physics waits for step 4.
+

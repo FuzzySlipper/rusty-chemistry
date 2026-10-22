@@ -1,0 +1,21 @@
+{
+  "project": "rusty-chemistry",
+  "serve": {
+    "command": "PATH=\"$HOME/.local/bin:$HOME/.dotnet:$PATH\" exec rusty dev --live-debug --bind-host {host} --port {port} --diagnostics-log {session_dir}/rusty-engine-diagnostics.ndjson",
+    "instanceArgs": "--instance {instance} --label {label}",
+    "keepArgs": "--keep",
+    "stopCommand": "PATH=\"$HOME/.local/bin:$HOME/.dotnet:$PATH\" rusty dev stop --instance {instance}",
+    "healthUrl": "/product-ui/main.js",
+    "readyText": "Chemistry sandbox",
+    "reusePolicy": "broker_owned",
+    "startupTimeout": "180s",
+    "healthInterval": "250ms",
+    "preferredPort": 0
+  },
+  "playtest": {
+    "startPath": "/",
+    "viewport": { "width": 1280, "height": 720 },
+    "headed": false,
+    "recordVideo": false
+  }
+}

@@ -1,7 +1,8 @@
-# Rusty Template agent guidance
+# Rusty Chemistry agent guidance
 
-Rusty Template is a minimal C# counter product and starting point for downstream
-Rusty Engine projects. Keep it small enough to understand and customize.
+Rusty Chemistry is a lab for a voxel chemistry kernel and the Engine sandbox
+that exercises it ([docs/chemistry.md](docs/chemistry.md)). The kernel stays
+Engine-free so products can adopt it; the sandbox is its first adapter.
 
 > The product decides. The Engine guarantees.
 
@@ -22,9 +23,13 @@ and pause only decisions that need unavailable authority.
 
 ## Ownership and source
 
-- `src/RustyTemplate.Game/` owns counter state, application policy, semantic
-  input interpretation, and UI facts. Organize additions by product domain;
-  keep the product entry focused on explicit composition and lifecycle.
+- `src/RustyChemistry/` owns the chemistry kernel: pack definitions and
+  reader, the field and its step. It references no Engine type; adapters live
+  in products. Its semantics are checked by `tests/ChemistryKernel`.
+- `src/ChemistrySandbox/` owns the sandbox: arena layout, the voxel mirror,
+  the quantity overlay, tools, camera, semantic input interpretation and UI
+  facts. Organize additions by product domain; keep the product entry
+  focused on explicit composition and lifecycle.
 - `Rusty.Engine` owns named Engine mechanisms: lifecycle/update admission,
   input delivery, rendering/resources, spatial queries, content delivery,
   persistence primitives, and host integration. Search the safe SDK and

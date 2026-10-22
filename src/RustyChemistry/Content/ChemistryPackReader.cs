@@ -109,7 +109,7 @@ internal sealed class ChemistryPackReader
         TransferDefinition? transfer = null;
         if (Optional(node, "transfer") is Node transferNode)
         {
-            Object(transferNode, "rate", "drift", "blockedBy", "modulator");
+            Object(transferNode, "rate", "drift", "rise", "blockedBy", "modulator");
             float rate = Number(Required(transferNode, "rate"));
             if (rate < 0f)
             {
@@ -117,7 +117,8 @@ internal sealed class ChemistryPackReader
             }
 
             transfer = new TransferDefinition(rate, Optional(transferNode, "drift") is Node drift && Flag(drift),
-                OptionalQuantity(transferNode, "blockedBy"), OptionalModulator(transferNode));
+                OptionalQuantity(transferNode, "blockedBy"), OptionalModulator(transferNode),
+                OptionalNumber(transferNode, "rise") ?? 0f);
         }
 
         return new QuantityDefinition(id, ambient, min, max, settle, epsilon, transfer);
