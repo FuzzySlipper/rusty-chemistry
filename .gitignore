@@ -1,0 +1,13 @@
+# Managed build output and the SDK-staged product bundle.
+**/bin/
+**/obj/
+
+# Installed Engine release pairs and local runtime state.
+.runtime/
+
+# Local tooling caches and generated UI/test output.
+node_modules/
+target/
+src/ui/generated/
+playwright-report/
+test-results/
