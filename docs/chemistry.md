@@ -193,8 +193,7 @@ acts on, and emitter lifetime and shape. They are a concrete starting point
 for the "Layer 3 → voxel parameters" item the brief is waiting on.
 
 **Modulators** are named multipliers on rule rates (`"modulator": "fire"`)
-that the adapter sets: rain damping combustion, the Emperor making a channel
-vivid or muted, a celestial wax and wane. They scale and never gate, which is
+that the adapter sets: rain damping combustion, a celestial wax and wane. They scale and never gate, which is
 what wardens-circuit's non-gating rule requires (spec §8). A global **drift**
 vector (the wind) applies to quantities whose transfer is marked `drift`.
 
@@ -285,7 +284,9 @@ What maps directly:
 
 - **Layer 1**: the six operators.
 - **Layer 2**: emitter delivery.
-- **Emperor vivid/muted**: a modulator.
+- **Emperor vivid/muted**: a feel the caster gives each cast (strength,
+  radius, delay, chaining). It isn't a kernel modulator, because it differs
+  per channel rather than per rule.
 - **Environmental cues** (fire glow, flooding, overgrowth, stress lines,
   sediment) and **symptom severity**: materials and quantities in the field
   that channels act on.
@@ -320,7 +321,8 @@ Questions for the wardens-circuit author, not ours to settle:
    pack: grass fire, a smoky cave, water dousing, a shock in a puddle. *Done;
    see [sandbox as built](#sandbox-as-built).*
 3. **Q90 pack**: six channels and the Emperor toggle, the brief's feel test,
-   on the same kernel with no kernel change.
+   on the same kernel with no kernel change. *Done with placeholders; see
+   [Q90 channels as built](#q90-channels-as-built).*
 4. **Engine request** for voxel detachment and impact readouts, after
    re-verifying against the pin. Filing needs the owner's go-ahead.
 5. **craftsurvive adapters**: voxel, ambient, entity and physics bridges.
@@ -414,21 +416,28 @@ dropped, not owed.
   - around opaque voxels, a tinted shell shows the value inside;
   - inside translucent voxels (water), cubes are opaque, so they draw the same
     under the surface in every chunk.
-- `Tools/ToolBelt.cs` turns a click into an emitter, a discharge or a front.
+- `Casting/` turns a click into a cast plan: an emitter, a discharge or a
+  front for a plain tool, or a composed channel (below). The caster lands
+  each plan after its delay and applies its operations before each field
+  step.
 - `Viewing/OrbitCamera.cs` orbits, pans and zooms, and turns the cursor into
   a pick ray for `Spatial.PickVoxel`.
-- `Ui/` and `src/ui/main.js` form the panel. It chooses the tool, overlay and
-  wind, pauses, steps or resets the field, and shows step cost and material
-  counts.
+- `Ui/` and `src/ui/main.js` form the panel. It switches scenes and chooses
+  the tool, overlay and wind. It pauses, steps or resets the field, and shows
+  step cost and material counts.
 
-Content is in two files. `content/chemistry/physical.json` is the pack.
-`content/sandbox/sandbox.json` holds each material's colour, emission and
-translucency, the overlays' colours and ranges, the tools' parameters and the
-wind speed.
+`content/sandbox/scenes.json` lists the scenes. For the physical one,
+`content/chemistry/physical.json` is the pack, and
+`content/sandbox/physical.json` holds the layout, each material's colour,
+emission and translucency, the overlays' colours and ranges, the tools'
+parameters and the wind speed.
 
 Live-debug commands act on exact cells, for agents and playtests:
 
-- `sandbox.use <tool> x y z` uses a tool on a cell;
+- `sandbox.scene <id>` switches scene;
+- `sandbox.use <tool> x y z` uses a tool or channel on a cell;
+- `sandbox.plan <tool> x y z` says what it would compose there, without
+  casting;
 - `sandbox.cell x y z` reads its material, sky exposure and quantities;
 - `sandbox.stats` reports the step, activity, cost and material counts.
 
@@ -463,4 +472,174 @@ Limits:
 - Smoke inside the hut is invisible from outside, so the readings come from
   `sandbox.cell`. A cutaway view would show it.
 - Nothing here moves bodies yet. Physics waits for step 4.
+
+## Q90 channels as built
+
+The sandbox's second scene runs wardens-circuit's channel feel test
+(`collab/implementation-briefs/channel-composition-feel-test.md` in that
+repository) on the same kernel, with no kernel change. The brief's open
+items are filled with **placeholders** so the people ruling on them can try
+candidates rather than argue them in the abstract. Every placeholder lives in
+`content/sandbox/q90.json` or `content/chemistry/q90.json` and is marked as
+one there.
+
+### The room
+
+The machine room (`Arena/MachineRoomLayout.cs`) is open-topped and has three
+bays. Stone walls with low doorways separate them. Each bay has a wall of nine
+gears on a frame pillar, and one frame girder joins every pillar.
+
+The air carries the five Wuxing media as quantities. Organs hold each near 1:
+that is the media's `settle` toward ambient. In each bay a pathogen emitter
+distorts one medium:
+
+| Bay | Symptom | Distortion | Gears jam when |
+| --- | --- | --- | --- |
+| A | overheated bearing | fire fed in | fire ≥ 3 |
+| B | flooded basin | water wells up in a stone basin and spills | water ≥ 2 |
+| C | starved drive | wood drained away | wood ≤ 0.3 |
+
+A and C jam within about 20 s, while B creeps and starts jamming around 40 s.
+
+A jammed gear is freed by any of three things:
+- **renewal** (kindle ≥ 5);
+- **a shock** (jolt ≥ 10);
+- **resynchronising** (signal ≥ 5).
+
+A freed gear still standing in the wrong medium jams again. Casts never
+deposit a medium; they move, hold, bind or transform it, as the Room Gears
+note says the medium is not directly written.
+
+`sandbox.symptoms` reads each bay's medium level and jammed gears.
+`sandbox.emperor <id>` sets the Emperor.
+
+### Composition
+
+`Channels/ChannelTool.cs` derives every channel from one rule:
+
+- **Layer 1, element (placeholder for the brief's item 4):** each element
+  trigram is one kernel operator acting through one quantity.
+
+  | Element | Operator | Acts through |
+  | --- | --- | --- |
+  | Fire | transform | kindle |
+  | Water | transfer | the targeted medium |
+  | Thunder | discharge | jolt |
+  | Wind | propagate | a signal front |
+  | Lake | confine | hold |
+  | Mountain | bind | bind |
+
+- **Layer 2, delivery (placeholder):** the gravity trigram in its position
+  sets five things: radius, strength, the delay before the cast lands, how
+  far a discharge or front reaches, and its own inward or outward draw.
+  - *Heaven-upper* is a wide, gentle field condition after a pause: radius
+    6, ×0.5, 0.8 s.
+  - *Earth-lower* is small, intense and concentrating: radius 2, ×2, 0.2 s,
+    drawing inward.
+- **Layer 3, governance (placeholder for the brief's item 1):** each hexagram
+  fills the three slots the brief floats.
+  - `motion` (toward or away) pushes what the cast moves.
+  - `target` (excess or deficit) picks the medium most above or below
+    healthy around the impact.
+  - `tempo` (pulse or sustained) sets duration, repeats and level.
+
+The slot values for each hexagram are my reading of its name:
+
+| Hex | Element via delivery | motion, target, tempo |
+| --- | --- | --- |
+| 44 Encounter | wind via heaven-upper | toward, deficit, pulse |
+| 6 Conflict | water via heaven-upper | away, excess, pulse |
+| 33 Retreat | mountain via heaven-upper | away, excess, sustained |
+| 45 Gathering | lake via earth-lower | toward, excess, sustained |
+| 35 Progress | fire via earth-lower | away, deficit, pulse |
+| 16 Enthusiasm | thunder via earth-lower | away, excess, pulse |
+
+The six compositions match the standard King Wen trigrams. That settles the
+brief's item 3 for this roster. The loader also enforces the canonical
+constraint that each channel has exactly one gravity trigram.
+
+`sandbox.plan <hex> x y z` prints what a channel would compose at a cell.
+
+### Emperor resonance
+
+Vivid comes from the Horseman table: a channel is vivid when it contains one
+of the active Emperor's Horseman trigrams.
+
+| Emperor | Vivid channels |
+| --- | --- |
+| Yao | 44, 16 |
+| Shun | 6, 35 |
+| Zhuanxu | 33, 45 |
+| Ku | all six |
+| Huangdi | none |
+
+Vivid casts chain: one within 3 s of the last lands at once at ×1.4.
+
+"Muted" (the brief's item 2) is a switch between candidates, so they can be
+felt side by side. Muted casts never chain, and the candidates add nothing,
+slower landing (×2.5 delay), weaker effect (×0.6) or scattered effect (×1.6
+radius at ×0.6). Cards glow when vivid and dim when muted, with no text, as
+the brief asks.
+
+### What the casts did
+
+Measured over live-debug under Ku, so every cast was at full vivid strength.
+Each cast landed 25 s after a reset, and bays were read at +1 to +15 s.
+
+Single casts:
+
+- **6 Conflict** drives an excess medium back toward healthy for a few
+  seconds: fire 4 → 2.4, water 1.8 → 0.98. It frees nothing, and the
+  pathogen restores the excess within about 10 s.
+- **33 Retreat** prevents jamming but frees nothing. In Bay B no gear jammed
+  while it lasted, against one without it.
+- **45 Gathering** confines in place. It stalls the flood's spread, but in
+  Bay A it makes the excess worse (fire 4 → 4.6).
+- **35 Progress**, **16 Enthusiasm** and **44 Encounter** free jammed gears
+  for a second or two. The cause remains, so they rejam:
+  - Progress freed six of nine in Bay A;
+  - Enthusiasm's jolt runs the girder and frees a few gears in other bays
+    too;
+  - Encounter's signal frees four in Bay C and doesn't reach past the walls.
+
+Pairs read as distinct, composable verbs:
+
+| Bay | Casts | Freed at +1 s | Still free at +15 s |
+| --- | --- | --- | --- |
+| A | 33 Retreat, then 35 Progress | 9 of 9 | 8, despite fire at 4 |
+| A | 6 Conflict, then 35 Progress | 9 of 9 | none (rejammed by +5 s) |
+| C | 33 Retreat, then 16 Enthusiasm | 9 of 9 | 7 |
+
+In the last pair the jolt also freed five gears in Bay A, a whole bay away.
+
+### For the wardens-circuit designers
+
+These came out of building and running it, and are theirs to decide:
+
+1. **The target slot binds one operator.** Under these placeholders only
+   Water reads `target`; the other five ignore it. Q90's only Water channel
+   targets excess. So nothing in Q90 can draw a deficit back in, and Bay C
+   can only be treated at its gears, never at its medium. If target
+   selection should matter for every channel, it needs to mean *where* a
+   cast acts (on cells in excess or in deficit), not *which medium*.
+2. **Every channel has a gravity trigram, so Ku's Horseman makes all 24
+   vivid**, and Huangdi has no Horseman, so it makes none. Under those two
+   Emperors the vivid/muted axis carries no information. That is worth
+   knowing before using Ku or Huangdi in the rotation test.
+3. **Persistent causes make single casts momentary.** With a pathogen that
+   never relents, freeing a gear lasts seconds. Durable relief came only
+   from pairs, which makes vivid chaining matter but may not be the reading
+   they intend. Whether a cast can weaken the distortion itself (the organ's
+   passage, in Room Gears terms) is a design question the room can test
+   once it's answered.
+4. **"Muted" candidates other than "only can't chain" are penalties**
+   (slower, weaker, scattered). The spec says muted is never penalized.
+   Comparing them in play may show whether the chain loss alone is
+   noticeable enough.
+
+Things that stay placeholders until ruled:
+- every number in the element, delivery and tempo tables;
+- the slot values per hexagram;
+- the jam thresholds;
+- the pathogen strengths.
 

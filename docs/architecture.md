@@ -16,12 +16,15 @@ Chemistry kernel (Engine-free C#) -> sandbox adapters and policy (C#)
 | --- | --- |
 | `src/RustyChemistry/` | The chemistry kernel: pack reader, field, step, emitters, discharges, fronts |
 | `src/ChemistrySandbox/SandboxProduct.cs` | Lifecycle, step pacing on admitted time, input and command interpretation, debug commands, panel projection |
-| `src/ChemistrySandbox/Arena/` | The arena's layout, and the voxel mirror that writes identity changes back as Engine voxel edits |
+| `src/ChemistrySandbox/Setup/` | Scenes: each scene's typed content and pack, its tools, and which layout builds its field |
+| `src/ChemistrySandbox/Arena/` | The physical arena and the Q90 machine room layouts, symptom readings, and the voxel mirror that writes identity changes back as Engine voxel edits |
+| `src/ChemistrySandbox/Casting/` | Cast plans, plain tools, and the caster that schedules casts on field time and applies vivid/muted feel |
+| `src/ChemistrySandbox/Channels/` | wardens-circuit channel composition (element × delivery × governance) and the Emperor's Horseman resonance |
 | `src/ChemistrySandbox/Overlay/` | Drawing one quantity as per-chunk meshes |
-| `src/ChemistrySandbox/Tools/`, `Viewing/`, `Setup/`, `Ui/` | Tools, the orbit camera and picking, typed sandbox content, the panel contract |
+| `src/ChemistrySandbox/Viewing/`, `Ui/` | The orbit camera and picking; the panel contract |
 | `src/ChemistrySandbox/ChemistrySandbox.csproj` | Explicit product entry, content/UI roots, the command intent, and host defaults |
 | `src/ui/main.js` | DOM panel, command claims, projection subscription, and UI cleanup |
-| `content/` | The physical pack and the sandbox's looks, overlays, tools and wind |
+| `content/` | The physical and Q90 packs, the scene list, and each scene's looks, overlays and tools or channel tables |
 | Engine SDK/runtime | Generated interop, admitted updates/input, retained UI transport, host, renderer, and browser shell |
 
 ## Lifecycle and data flow
@@ -34,7 +37,9 @@ the SDK/runtime ABI identity and constructs the product with
 Engine calls `Start` and admits `ProductUpdate` callbacks. Each update
 interprets pointer and keyboard input (camera, picking, tool keys) and panel
 commands (the `sandbox.command` payload intent), then steps the field for the
-admitted simulation time, at most three steps. Each step's identity changes
+admitted simulation time, at most three steps. Before each step the caster
+applies whatever casts have fallen due, so casts in flight pause with the
+field. Each step's identity changes
 become voxel edits and the overlay redraws the chunks that changed. C#
 publishes a `UiValue` for the panel, which holds no authoritative state.
 

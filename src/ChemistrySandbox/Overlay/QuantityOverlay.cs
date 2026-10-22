@@ -165,9 +165,11 @@ internal sealed class QuantityOverlay : IDisposable
 
         field.ReadChunk(origin, quantity, values);
         float span = shown.High - shown.Low;
+        float ambient = field.Ambient(quantity);
         for (int index = 0; index < CellsPerChunk; index++)
         {
-            float share = (values[index] - shown.Low) / span;
+            float value = shown.Below ? ambient - values[index] : values[index];
+            float share = (value - shown.Low) / span;
             levels[index] = share < 0f ? (byte)0 : (byte)(1 + Math.Min(Levels - 1, (int)(share * Levels)));
         }
 

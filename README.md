@@ -5,9 +5,11 @@ A lab for a modular, Breath-of-the-Wild-style chemistry kernel on voxel cells
 `src/RustyChemistry/`, and its headless checks run with
 `dotnet run -c Release --project tests/ChemistryKernel`.
 
-The product is a sandbox: a voxel arena running the kernel's physical pack,
-where you light grass, douse it, strike the pond with lightning, blast the
-shed and watch the smoke. The packaged Engine owns the host, input, update
+The product is a sandbox with two scenes. The physical arena runs the
+kernel's physical pack: light grass, douse it, strike the pond with
+lightning, blast the shed and watch the smoke. The Q90 machine room casts
+wardens-circuit's Quadrant 90 channels, composed from their trigrams with
+placeholder tables, at symptoms in a sick machine. The packaged Engine owns the host, input, update
 loop and browser shell. The repository started from rusty-template.
 
 ## Setup
@@ -70,9 +72,9 @@ rusty build --aot
 | Path | Responsibility |
 | --- | --- |
 | `src/RustyChemistry/` | Engine-free chemistry kernel: pack reader, field, step |
-| `src/ChemistrySandbox/` | The sandbox product: arena, voxel mirror, overlay, tools, camera |
+| `src/ChemistrySandbox/` | The sandbox product: scenes, layouts, voxel mirror, overlay, casting, channels, camera |
 | `src/ui/main.js` | DOM panel: tool, overlay and wind choices, field controls and stats |
-| `content/` | The physical pack and the sandbox's looks, overlays and tools |
+| `content/` | The physical and Q90 packs and each scene's looks, overlays and tools or channels |
 | `tests/ChemistryKernel/` | Headless checks of the kernel's operators |
 | `Directory.Build.props` | Matched Engine SDK/runtime pin and default product project |
 | `docs/architecture.md` | Current ownership and data flow |

@@ -26,9 +26,11 @@ and pause only decisions that need unavailable authority.
 - `src/RustyChemistry/` owns the chemistry kernel: pack definitions and
   reader, the field and its step. It references no Engine type; adapters live
   in products. Its semantics are checked by `tests/ChemistryKernel`.
-- `src/ChemistrySandbox/` owns the sandbox: arena layout, the voxel mirror,
-  the quantity overlay, tools, camera, semantic input interpretation and UI
-  facts. Organize additions by product domain; keep the product entry
+- `src/ChemistrySandbox/` owns the sandbox: scenes and their layouts, the
+  voxel mirror, the quantity overlay, casting, the wardens-circuit channel
+  composition (whose tables in `content/sandbox/q90.json` are placeholders
+  until that project rules on them), camera, semantic input interpretation
+  and UI facts. Organize additions by product domain; keep the product entry
   focused on explicit composition and lifecycle.
 - `Rusty.Engine` owns named Engine mechanisms: lifecycle/update admission,
   input delivery, rendering/resources, spatial queries, content delivery,

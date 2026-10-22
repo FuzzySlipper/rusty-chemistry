@@ -1,0 +1,6 @@
+{
+  "scenes": [
+    { "id": "physical", "label": "Physical", "file": "sandbox/physical.json" },
+    { "id": "q90", "label": "Q90 channels", "file": "sandbox/q90.json" }
+  ]
+}

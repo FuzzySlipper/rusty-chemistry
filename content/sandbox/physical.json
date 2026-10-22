@@ -1,5 +1,6 @@
 {
   "pack": "chemistry/physical.json",
+  "layout": "arena",
   "seed": 7,
   "materials": {
     "stone": { "color": "#7d7a75" },

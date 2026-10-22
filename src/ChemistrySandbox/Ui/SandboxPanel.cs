@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ChemistrySandbox.Arena;
 using Rusty.Engine;
 
 namespace ChemistrySandbox.Ui;
@@ -32,22 +33,33 @@ internal readonly record struct SandboxCommand(string Name, string? Id)
     }
 }
 
-/// <summary>What the panel shows: the choices, what is chosen, and how the field is doing.</summary>
+/// <summary>One choice the panel offers; a channel also carries its trigrams and whether it is vivid now.</summary>
+internal readonly record struct SandboxChoice(string Id, string Label, string? Detail = null, bool? Vivid = null);
+
+/// <summary>What the panel shows: the choices, what is chosen, the symptoms, and how the field is doing.</summary>
 internal sealed record SandboxView(
-    IReadOnlyList<(string Id, string Label)> Tools,
+    IReadOnlyList<SandboxChoice> Scenes,
+    string Scene,
+    IReadOnlyList<SandboxChoice> Tools,
     string Tool,
-    IReadOnlyList<(string Id, string Label)> Overlays,
+    IReadOnlyList<SandboxChoice> Overlays,
     string Overlay,
-    IReadOnlyList<string> Winds,
+    IReadOnlyList<SandboxChoice> Winds,
     string Wind,
+    IReadOnlyList<SandboxChoice> Emperors,
+    string? Emperor,
+    IReadOnlyList<SandboxChoice> Muted,
+    string? MutedChoice,
     bool Running,
     long Step,
     int ActiveChunks,
     int Chunks,
     int Fronts,
+    int Pending,
     double StepMilliseconds,
     int OverlayCubes,
     IReadOnlyList<(string Material, int Cells)> Counts,
+    IReadOnlyList<SymptomReading> Symptoms,
     string Last)
 {
     internal const string Stream = "chemistry-sandbox";
@@ -57,25 +69,54 @@ internal sealed record SandboxView(
     {
         JsonObject view = new()
         {
+            ["scenes"] = Choices(Scenes),
+            ["scene"] = Scene,
             ["tools"] = Choices(Tools),
             ["tool"] = Tool,
             ["overlays"] = Choices(Overlays),
             ["overlay"] = Overlay,
-            ["winds"] = new JsonArray([.. Winds.Select(wind => (JsonNode?)JsonValue.Create(wind))]),
+            ["winds"] = Choices(Winds),
             ["wind"] = Wind,
+            ["emperors"] = Choices(Emperors),
+            ["emperor"] = Emperor,
+            ["muteds"] = Choices(Muted),
+            ["muted"] = MutedChoice,
             ["running"] = Running,
             ["step"] = Step,
             ["activeChunks"] = ActiveChunks,
             ["chunks"] = Chunks,
             ["fronts"] = Fronts,
+            ["pending"] = Pending,
             ["stepMs"] = Math.Round(StepMilliseconds, 2),
             ["overlayCubes"] = OverlayCubes,
             ["counts"] = new JsonArray([.. Counts.Select(count => (JsonNode?)new JsonObject { ["material"] = count.Material, ["cells"] = count.Cells })]),
+            ["symptoms"] = new JsonArray([.. Symptoms.Select(symptom => (JsonNode?)new JsonObject
+            {
+                ["name"] = symptom.Name,
+                ["medium"] = symptom.Medium,
+                ["level"] = Math.Round(symptom.Level, 2),
+                ["healthy"] = symptom.Healthy,
+                ["jammed"] = symptom.Jammed,
+                ["gears"] = symptom.Gears,
+            })]),
             ["last"] = Last,
         };
         return UiValues.FromJson(view);
     }
 
-    private static JsonArray Choices(IReadOnlyList<(string Id, string Label)> choices) =>
-        new([.. choices.Select(choice => (JsonNode?)new JsonObject { ["id"] = choice.Id, ["label"] = choice.Label })]);
+    private static JsonArray Choices(IReadOnlyList<SandboxChoice> choices) => new([.. choices.Select(choice =>
+    {
+        JsonObject item = new() { ["id"] = choice.Id, ["label"] = choice.Label };
+        if (choice.Detail is string detail)
+        {
+            item["detail"] = detail;
+        }
+
+        if (choice.Vivid is bool vivid)
+        {
+            item["vivid"] = vivid;
+        }
+
+        return (JsonNode?)item;
+    })]);
 }

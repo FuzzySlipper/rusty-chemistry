@@ -1,0 +1,41 @@
+// The Q90 pack (PLACEHOLDER for wardens-circuit's channel feel test): a machine room whose air carries
+// the five Wuxing media, gears that jam when the medium around them is wrong, and the quantities the
+// six element operators act through. Casts never deposit a medium; they move, hold, bind or transform.
+// Every number here is a starting point to argue with, not a ruling.
+{
+  "quantities": [
+    // The Wuxing medium. Organs hold each near 1 (settle); a pathogen distorts it locally.
+    { "id": "fire", "ambient": 1, "max": 10, "settle": 0.05, "epsilon": 0.001, "transfer": { "rate": 0.6, "blockedBy": "hold" } },
+    { "id": "water", "ambient": 1, "max": 10, "settle": 0.05, "epsilon": 0.001, "transfer": { "rate": 0.6, "blockedBy": "hold" } },
+    { "id": "wood", "ambient": 1, "max": 10, "settle": 0.05, "epsilon": 0.001, "transfer": { "rate": 0.6, "blockedBy": "hold" } },
+    { "id": "metal", "ambient": 1, "max": 10, "settle": 0.05, "epsilon": 0.001, "transfer": { "rate": 0.6, "blockedBy": "hold" } },
+    { "id": "earth", "ambient": 1, "max": 10, "settle": 0.05, "epsilon": 0.001, "transfer": { "rate": 0.6, "blockedBy": "hold" } },
+    // What the operators act through. Each fades on its own once the cast stops feeding it.
+    { "id": "kindle", "max": 50, "settle": 1.5, "epsilon": 0.01, "transfer": { "rate": 0.3 } },
+    { "id": "jolt", "max": 100, "settle": 3, "epsilon": 0.01 },
+    { "id": "signal", "max": 100, "settle": 2, "epsilon": 0.01 },
+    { "id": "hold", "max": 1, "settle": 0.3, "epsilon": 0.001 },
+    { "id": "bind", "max": 100, "settle": 0.2, "epsilon": 0.01 }
+  ],
+  "materials": [
+    { "id": "air", "conduct": { "fire": 1, "water": 1, "wood": 1, "metal": 1, "earth": 1, "kindle": 1, "signal": 1 } },
+    { "id": "stone" },
+    { "id": "frame", "conduct": { "fire": 0.2, "water": 0.2, "wood": 0.2, "metal": 0.2, "earth": 0.2, "jolt": 0.95, "signal": 0.5 } },
+    { "id": "gear", "conduct": { "fire": 0.5, "water": 0.5, "wood": 0.5, "metal": 0.5, "earth": 0.5, "kindle": 0.5, "jolt": 0.9, "signal": 1 } },
+    { "id": "jammed-gear", "conduct": { "fire": 0.5, "water": 0.5, "wood": 0.5, "metal": 0.5, "earth": 0.5, "kindle": 0.5, "jolt": 0.9, "signal": 1 } }
+  ],
+  "transforms": [
+    // A gear loaded by the wrong medium moves wrong; binding resists it.
+    { "id": "jam-overheated", "from": ["gear"], "to": "jammed-gear", "chance": 0.5, "resistedBy": "bind",
+      "when": [{ "quantity": "fire", "atLeast": 3 }] },
+    { "id": "jam-flooded", "from": ["gear"], "to": "jammed-gear", "chance": 0.5, "resistedBy": "bind",
+      "when": [{ "quantity": "water", "atLeast": 2 }] },
+    { "id": "jam-starved", "from": ["gear"], "to": "jammed-gear", "chance": 0.5, "resistedBy": "bind",
+      "when": [{ "quantity": "wood", "atMost": 0.3 }] },
+    // Three ways to free one: renew it (kindle), shock it (jolt), or resynchronise it (signal). A freed gear
+    // still standing in the wrong medium jams again.
+    { "id": "renew", "from": ["jammed-gear"], "to": "gear", "when": [{ "quantity": "kindle", "atLeast": 5 }] },
+    { "id": "shock", "from": ["jammed-gear"], "to": "gear", "when": [{ "quantity": "jolt", "atLeast": 10 }] },
+    { "id": "resync", "from": ["jammed-gear"], "to": "gear", "when": [{ "quantity": "signal", "atLeast": 5 }] }
+  ]
+}

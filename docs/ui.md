@@ -2,7 +2,8 @@
 
 `src/ui/main.js` exports `mountProductUi`. It claims the declared
 `sandbox.command` intent with a `rusty.chemistry.command.v1` payload
-(`{command, id?}`: `tool`, `overlay`, `wind`, `run`, `step`, `reset`) and
+(`{command, id?}`: `scene`, `tool`, `emperor`, `muted`, `overlay`, `wind`, `run`,
+`step`, `reset`) and
 observes the Engine-delivered sandbox projection. The product project
 selects this directory and module for SDK staging.
 

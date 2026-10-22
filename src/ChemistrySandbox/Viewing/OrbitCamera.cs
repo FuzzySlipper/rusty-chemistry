@@ -17,7 +17,7 @@ internal sealed class OrbitCamera : IDisposable
 
     private readonly IEngineContext engine;
     private readonly Camera camera;
-    private readonly Vector3 home;
+    private Vector3 home;
     private Vector3 target;
     private float yaw = 35f, pitch = -42f, distance = 70f;
     private Vector2? cursor;
@@ -34,8 +34,10 @@ internal sealed class OrbitCamera : IDisposable
     /// <summary>The cursor on the canvas, normalized and bottom-left based, once the pointer has moved over it.</summary>
     internal Vector2? Cursor => cursor;
 
-    internal void Reset()
+    /// <summary>Returns to the starting view, around a new home when one is given.</summary>
+    internal void Reset(Vector3? around = null)
     {
+        home = around ?? home;
         target = home;
         (yaw, pitch, distance) = (35f, -42f, 70f);
         engine.CameraView.UpdateCamera(new(camera, Descriptor()));

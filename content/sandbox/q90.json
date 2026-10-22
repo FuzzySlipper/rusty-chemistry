@@ -1,0 +1,78 @@
+// Quadrant 90's six channels on the chemistry kernel, for wardens-circuit's channel feel test
+// (collab/implementation-briefs/channel-composition-feel-test.md). A channel's behaviour is derived from
+// three tables here, never authored per channel:
+//   elements     Layer 1: what each element trigram does, as one kernel operator   (PLACEHOLDER: brief item 4)
+//   deliveries   Layer 2: how a gravity trigram in its position delivers it        (PLACEHOLDER)
+//   governance   Layer 3: per hexagram, three slots every operator reads the same way (PLACEHOLDER: brief item 1)
+// "muted" offers several candidate meanings to feel side by side                    (PLACEHOLDER: brief item 2)
+{
+  "pack": "chemistry/q90.json",
+  "layout": "machine-room",
+  "seed": 90,
+  "materials": {
+    "stone": { "color": "#5f5b57" },
+    "frame": { "color": "#8c96a3" },
+    "gear": { "color": "#c9a23a", "emission": "#c9a23a", "emissionIntensity": 0.3 },
+    "jammed-gear": { "color": "#7a2e2e" }
+  },
+  "overlays": [
+    { "quantity": "fire", "label": "Fire", "color": "#ff4a1c", "low": 1.6, "high": 6 },
+    { "quantity": "water", "label": "Water", "color": "#2f7bff", "low": 1.6, "high": 6 },
+    { "quantity": "wood", "label": "Wood deficit", "color": "#3fbf4a", "low": 0.1, "high": 0.9, "below": true },
+    { "quantity": "kindle", "label": "Kindle", "color": "#ffb02e", "low": 0.5, "high": 20 },
+    { "quantity": "jolt", "label": "Jolt", "color": "#fff07a", "low": 0.5, "high": 40 },
+    { "quantity": "signal", "label": "Signal", "color": "#c47aff", "low": 0.5, "high": 30 },
+    { "quantity": "hold", "label": "Hold", "color": "#7af0ff", "low": 0.1, "high": 1 },
+    { "quantity": "bind", "label": "Bind", "color": "#e0e0e0", "low": 0.5, "high": 20 }
+  ],
+  "channels": {
+    "media": ["fire", "water", "wood", "metal", "earth"],
+    "elements": {
+      "fire":     { "operator": "transform", "quantity": "kindle", "amount": 30 },
+      "water":    { "operator": "transfer", "amount": 2 },
+      "thunder":  { "operator": "discharge", "quantity": "jolt", "amount": 60 },
+      "wind":     { "operator": "propagate", "quantity": "signal", "amount": 30 },
+      "lake":     { "operator": "confine", "quantity": "hold", "amount": 1 },
+      "mountain": { "operator": "bind", "quantity": "bind", "amount": 25 }
+    },
+    "deliveries": {
+      "heaven-upper": { "radius": 6, "strength": 0.5, "delay": 0.8, "reach": 24, "gather": 0 },
+      "heaven-lower": { "radius": 4, "strength": 0.8, "delay": 0.5, "reach": 16, "gather": -0.5 },
+      "earth-upper":  { "radius": 3, "strength": 1.2, "delay": 0.4, "reach": 10, "gather": 0 },
+      "earth-lower":  { "radius": 2, "strength": 2, "delay": 0.2, "reach": 8, "gather": 1 }
+    },
+    "tempos": {
+      "pulse":     { "seconds": 1, "repeats": 1, "level": 1, "frontSpeed": 24 },
+      "sustained": { "seconds": 6, "repeats": 4, "level": 0.6, "frontSpeed": 8 }
+    },
+    "motionSpeed": 0.5,
+    "channels": [
+      { "hex": 44, "name": "姤 Encounter", "upper": "heaven", "lower": "wind",
+        "governance": { "motion": "toward", "target": "deficit", "tempo": "pulse" } },
+      { "hex": 6, "name": "訟 Conflict", "upper": "heaven", "lower": "water",
+        "governance": { "motion": "away", "target": "excess", "tempo": "pulse" } },
+      { "hex": 33, "name": "遯 Retreat", "upper": "heaven", "lower": "mountain",
+        "governance": { "motion": "away", "target": "excess", "tempo": "sustained" } },
+      { "hex": 45, "name": "萃 Gathering", "upper": "lake", "lower": "earth",
+        "governance": { "motion": "toward", "target": "excess", "tempo": "sustained" } },
+      { "hex": 35, "name": "晉 Progress", "upper": "fire", "lower": "earth",
+        "governance": { "motion": "away", "target": "deficit", "tempo": "pulse" } },
+      { "hex": 16, "name": "豫 Enthusiasm", "upper": "thunder", "lower": "earth",
+        "governance": { "motion": "away", "target": "excess", "tempo": "pulse" } }
+    ],
+    "emperors": [
+      { "id": "yao", "label": "Yao (summer)", "horseman": ["thunder", "wind"] },
+      { "id": "shun", "label": "Shun (autumn)", "horseman": ["fire", "water"] },
+      { "id": "zhuanxu", "label": "Zhuanxu (winter)", "horseman": ["lake", "mountain"] },
+      { "id": "ku", "label": "Ku (spring)", "horseman": ["heaven", "earth"] },
+      { "id": "huangdi", "label": "Huangdi (centre)", "horseman": [] }
+    ],
+    "chain": { "window": 3, "strength": 1.4 },
+    "muted": [
+      { "id": "unchained", "label": "Only can't chain" },
+      { "id": "slower", "label": "Slower", "delay": 2.5 },
+      { "id": "weaker", "label": "Weaker", "strength": 0.6 },
+      { "id": "scattered", "label": "Scattered", "radius": 1.6, "strength": 0.6 }
+    ]
+  }
+}
