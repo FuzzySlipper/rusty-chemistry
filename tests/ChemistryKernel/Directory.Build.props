@@ -1,0 +1,4 @@
+<Project>
+  <!-- The kernel's checks are Engine-free, like the kernel: they build and run without this
+       repository's Engine pair (see src/RustyChemistry/Directory.Build.props). -->
+</Project>

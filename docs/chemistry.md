@@ -233,19 +233,22 @@ already owns what the physics bridge needs on the *push* side:
 - Bodies float in water fields.
 - Spatial overlap queries find the entities in a cell.
 
-What is missing is the *structure* side. Verified against the Engine docs on
-main; to be re-verified against the consuming product's pin before filing:
+What is missing is the *structure* side. Checked against the public API at
+pair 0.1.0-dev.4d95eb63da6f:
 
-1. **Detaching voxels into a dynamic body.** Dynamics bodies are boxes,
-   spheres and capsules, and nothing turns a connected voxel region into a
-   body or finds regions that lost their support. craftsurvive's
+1. **Detaching voxels into a dynamic body**, filed as rusty-engine #10291.
+   Dynamics bodies are boxes, spheres and capsules, and nothing turns scene
+   voxels into a body that collides and draws as them. Finding regions that
+   lost their support stays product-side, from voxel reads. craftsurvive's
    `TreeFelling` clears a felled trunk in the edit's own transaction; nothing
    falls. "Tree bonks enemy", supports burning out, and Mountain/Bind losing
    hold all need this. For trees alone, an honest product-side step exists:
    craftsurvive knows each tree's shape from its recipe and can spawn a
    capsule log body with a log mesh. General collapse is the Engine request.
-2. **Impact readouts.** The relative velocity or impulse of a contact, so a
-   falling log becomes damage. Not yet confirmed either way.
+2. **Impact readouts already exist.** `Dynamics.ReadWorld` returns each
+   contact's two bodies (or the environment), its impulse and the impulse's
+   magnitude, so a falling log can become damage. Contacts carry no point or
+   normal.
 3. **Only if profiling demands it**: a native multi-channel cell field on a
    worker, following `engine.WaterField`. The C# kernel comes first.
 
@@ -323,8 +326,8 @@ Questions for the wardens-circuit author, not ours to settle:
 3. **Q90 pack**: six channels and the Emperor toggle, the brief's feel test,
    on the same kernel with no kernel change. *Done with placeholders; see
    [Q90 channels as built](#q90-channels-as-built).*
-4. **Engine request** for voxel detachment and impact readouts, after
-   re-verifying against the pin. Filing needs the owner's go-ahead.
+4. **Engine request** for voxel detachment: rusty-engine #10291. Impact
+   readouts turned out to exist already.
 5. **craftsurvive adapters**: voxel, ambient, entity and physics bridges.
 
 Open questions:
@@ -333,8 +336,10 @@ Open questions:
   hydraulics belong to the water owners; whether anything else needs moving
   matter is unknown.
 - Cell size relative to craftsurvive's voxels, and the residency radius.
-- Whether the kernel ships to products as a project reference, a package, or
-  a vendored copy.
+- *Decided:* products take the kernel as a git submodule of this repository
+  and project-reference `src/RustyChemistry/RustyChemistry.csproj`. That
+  project has its own `Directory.Build.props`, so it builds without this
+  repository's Engine pin.
 
 ## Kernel as built
 

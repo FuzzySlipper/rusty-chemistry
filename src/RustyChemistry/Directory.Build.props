@@ -1,0 +1,5 @@
+<Project>
+  <!-- The kernel is Engine-free and consumed by other products as a submodule. This file stops MSBuild
+       importing the repository's Directory.Build.props, whose Engine pair pin and its restore check
+       belong to the sandbox, not to whoever builds the kernel. -->
+</Project>
