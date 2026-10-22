@@ -180,6 +180,52 @@ public sealed partial class ChemistryField
         }
     }
 
+    /// <summary>
+    /// Loads every cell of the chunk holding the cell at once, each as the material at its index (x + 16y +
+    /// 256z from the chunk's first cell, as <see cref="ReadChunk"/>) holding its initial quantities. A chunk
+    /// already loaded is replaced. Sky exposure is kept, as with <see cref="Load"/>.
+    /// </summary>
+    public void LoadChunk(Cell cell, ReadOnlySpan<ushort> materials)
+    {
+        if (materials.Length != CellCount)
+        {
+            throw new ArgumentException($"a chunk holds {CellCount} cells", nameof(materials));
+        }
+
+        foreach (ushort material in materials)
+        {
+            CheckMaterial(material);
+        }
+
+        FieldChunk chunk = ChunkFor(ChunkKey.Of(cell));
+        materials.CopyTo(chunk.Materials);
+        for (int index = 0; index < CellCount; index++)
+        {
+            for (int quantity = 0; quantity < quantityCount; quantity++)
+            {
+                chunk.Values[(quantity * CellCount) + index] = InitialValue(materials[index], quantity);
+            }
+        }
+
+        chunk.Wake();
+    }
+
+    /// <summary>
+    /// Unloads the chunk holding the cell, between steps: its cells then read as the default material at
+    /// ambient, and its neighbours exchange with the ambient across the faces it leaves, as at any edge of
+    /// the loaded region. Emitters, discharges and fronts reaching it pass it by. Returns whether it was loaded.
+    /// </summary>
+    public bool UnloadChunk(Cell cell)
+    {
+        if (!chunkMap.Remove(ChunkKey.Of(cell), out FieldChunk? chunk))
+        {
+            return false;
+        }
+
+        chunks.RemoveAt(chunks.BinarySearch(chunk, ByKey));
+        return true;
+    }
+
     public bool IsLoaded(Cell cell) => chunkMap.ContainsKey(ChunkKey.Of(cell));
 
     /// <summary>The cell's material; outside the loaded region, the default material.</summary>

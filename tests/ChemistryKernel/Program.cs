@@ -291,6 +291,38 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
     Check.That(field.ActiveChunkCount == 0, $"the field must sleep again once the heat has settled ({steps} steps)");
 }
 
+// --- residency: a whole chunk loads as cell-by-cell loading would; an unloaded chunk becomes open edge ---
+{
+    ushort[] layout = new ushort[16 * 16 * 16];
+    for (int index = 0; index < layout.Length; index++)
+    {
+        layout[index] = (ushort)((index / 16 % 16) == 0 ? stone : (index / 16 % 16) == 1 ? grass : air);
+    }
+
+    ChemistryField bulk = new(fire, new("air"));
+    bulk.LoadChunk(new(16, 0, 0), layout);
+    ChemistryField single = new(fire, new("air"));
+    for (int index = 0; index < layout.Length; index++)
+    {
+        single.Load(new(16 + (index % 16), index / 16 % 16, index / 256), layout[index]);
+    }
+
+    Check.That(bulk.MaterialAt(new(20, 1, 5)) == grass && bulk.MaterialAt(new(20, 0, 5)) == stone,
+        "a bulk chunk must place each material at its index");
+    Check.Near((float)bulk.Total(fuel), (float)single.Total(fuel), 0.001f, "a bulk chunk must hold the same initial quantities");
+
+    ChemistryField pair = new(diffusion, new("air"));
+    int warm = diffusion.Quantity("heat");
+    pair.Fill(new(0, 0, 0), new(31, 0, 0), diffusion.Material("air"));
+    pair.SetQuantity(new(15, 0, 0), warm, 100f);
+    Check.That(pair.UnloadChunk(new(20, 0, 0)) && !pair.IsLoaded(new(20, 0, 0)) && !pair.UnloadChunk(new(20, 0, 0)),
+        "a chunk must unload once");
+    Run(pair, 30);
+    Check.That(pair.ChunkCount == 1 && pair.Quantity(new(20, 0, 0), warm) == 0f,
+        "an unloaded chunk must read as ambient and stay unloaded");
+    Check.That(pair.Total(warm) < 99.0, "heat must leave through the face an unloaded chunk opened");
+}
+
 // --- the reader: problems are reported with their path, not dropped ----------------------------
 {
     void Rejects(string json, string path, string problem)

@@ -370,6 +370,7 @@ packs:
 - hysteresis;
 - smoke trapped indoors and venting outdoors;
 - buoyant smoke pooling under a roof, and a roof opening only its column;
+- loading a whole chunk at once, and unloading one;
 - discharge limited to a connected puddle;
 - a front bending around a wall;
 - Confine and Bind;
@@ -392,7 +393,9 @@ Known limits of this first cut:
 - An active chunk processes all 4096 cells. The only shortcut is skipping
   faces between equal values. Dense air is the main cost, and per-quantity
   activity or a narrower active set is the next lever if adapters need more.
-- There is no unload or residency API yet. Chunks are loaded and stay.
+- Residency is the adapter's: `LoadChunk` loads a whole chunk from a
+  material array and `UnloadChunk` drops one between steps, leaving open
+  edge behind. The field keeps no policy of its own about what stays loaded.
 - A cell changes identity at most once per step. Emitter shapes are spheres
   and boxes.
 - Transforms keep a cell's quantities except those they `set`. Loading a cell
