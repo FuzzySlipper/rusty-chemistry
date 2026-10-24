@@ -41,7 +41,7 @@ Open the URL printed by the host. Pick a tool in the panel and click the
 arena; the panel lists the camera controls.
 `rusty dev` runs the pinned pair's runtime: CoreCLR loads the product, and
 changes to declared C#, UI, or content inputs rebuild and reload it. See
-`rusty dev --help` for `--bind-host`, `--live-debug`, and `--debugger`.
+`rusty dev --help` for `--bind-host` and `--live-debug`.
 
 `Directory.Build.props` pins the exact SDK/runtime pair and names the product
 project (`<RustyEngineProject>`) that `rusty dev` and `rusty build` use without
