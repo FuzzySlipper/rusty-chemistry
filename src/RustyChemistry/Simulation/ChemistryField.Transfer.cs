@@ -207,7 +207,7 @@ public sealed partial class ChemistryField
                     }
                     else
                     {
-                        Across(chunk, index, conductance, east, FieldChunk.Index(0, y, z), upper: true, pass, courantX);
+                        Across(chunk, index, conductance, east, FieldChunk.Index(0, y, z), 0, upper: true, pass, courantX);
                     }
 
                     if (y < Mask)
@@ -216,7 +216,7 @@ public sealed partial class ChemistryField
                     }
                     else
                     {
-                        Across(chunk, index, conductance, up, FieldChunk.Index(x, 0, z), upper: true, pass, courantY);
+                        Across(chunk, index, conductance, up, FieldChunk.Index(x, 0, z), 1, upper: true, pass, courantY);
                     }
 
                     if (z < Mask)
@@ -225,22 +225,22 @@ public sealed partial class ChemistryField
                     }
                     else
                     {
-                        Across(chunk, index, conductance, north, FieldChunk.Index(x, y, 0), upper: true, pass, courantZ);
+                        Across(chunk, index, conductance, north, FieldChunk.Index(x, y, 0), 2, upper: true, pass, courantZ);
                     }
 
                     if (x == 0 && westOwned)
                     {
-                        Across(chunk, index, conductance, west, FieldChunk.Index(Mask, y, z), upper: false, pass, courantX);
+                        Across(chunk, index, conductance, west, FieldChunk.Index(Mask, y, z), 0, upper: false, pass, courantX);
                     }
 
                     if (y == 0 && downOwned)
                     {
-                        Across(chunk, index, conductance, down, FieldChunk.Index(x, Mask, z), upper: false, pass, courantY);
+                        Across(chunk, index, conductance, down, FieldChunk.Index(x, Mask, z), 1, upper: false, pass, courantY);
                     }
 
                     if (z == 0 && southOwned)
                     {
-                        Across(chunk, index, conductance, south, FieldChunk.Index(x, y, Mask), upper: false, pass, courantZ);
+                        Across(chunk, index, conductance, south, FieldChunk.Index(x, y, Mask), 2, upper: false, pass, courantZ);
                     }
                 }
             }
@@ -288,77 +288,98 @@ public sealed partial class ChemistryField
     /// <summary>
     /// <see cref="Face"/> between a cell of a transferring chunk and its neighbour across the chunk's border, when
     /// nothing holds the quantity and no emitter gathers it: the same arithmetic, the neighbour standing above
-    /// the cell along the axis when <paramref name="upper"/>, below it otherwise. A neighbour outside the loaded
-    /// region is the ambient, as conductive as the cell.
+    /// the cell along <paramref name="axis"/> when <paramref name="upper"/>, below it otherwise. A neighbour
+    /// outside the loaded region is the ambient, as conductive as the cell.
     /// </summary>
-    private void Across(FieldChunk chunk, int index, float conductance, FieldChunk? neighbour, int neighbourIndex, bool upper,
+    private void Across(FieldChunk chunk, int index, float conductance, FieldChunk? neighbour, int neighbourIndex, int axis, bool upper,
         TransferPass pass, float courant)
     {
         int offset = pass.Offset;
         float own = chunk.Values[offset + index];
-        float other;
-        float open;
-        if (neighbour is null)
+        float other = neighbour is null ? ambient[pass.Quantity] : neighbour.Values[offset + neighbourIndex];
+        float? settled = neighbour is null ? null : SettledAgainst(neighbour, index, axis, ownSideUpper: !upper, pass.Quantity);
+        if (!pass.Advects && own == other && settled is null)
         {
-            other = ambient[pass.Quantity];
-            open = conductance;
-        }
-        else
-        {
-            other = neighbour.Values[offset + neighbourIndex];
-            if (!pass.Advects && own == other)
-            {
-                return;
-            }
-
-            open = Math.Min(conductance, conductanceOf[pass.Quantity][neighbour.Materials[neighbourIndex]]);
+            return;
         }
 
         // Face takes min(lower, upper); with no neighbour both sides are the cell's own conductance.
+        float open = neighbour is null ? conductance : Math.Min(conductance, conductanceOf[pass.Quantity][neighbour.Materials[neighbourIndex]]);
         if (open <= 0f)
         {
             return;
         }
 
-        float lowerValue = upper ? own : other, upperValue = upper ? other : own;
+        float carried = courant * open;
+        float flux = upper ? Flux(own, other, open, pass, carried) : Flux(other, own, open, pass, carried);
+        if (flux != 0f)
+        {
+            chunk.Next[offset + index] += upper ? -flux : flux;
+        }
+
+        if (neighbour is null)
+        {
+            return;
+        }
+
+        float crossing = settled is float was ? flux - (upper ? Flux(was, other, open, pass, carried) : Flux(other, was, open, pass, carried)) : flux;
+        if (crossing != 0f)
+        {
+            neighbour.PrepareNext();
+            neighbour.Next[offset + neighbourIndex] += upper ? crossing : -crossing;
+        }
+    }
+
+    /// <summary>The flux from a lower cell to an upper one across a face: diffusion, and upwind drift when the pass carries.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float Flux(float lowerValue, float upperValue, float open, TransferPass pass, float carried)
+    {
         float flux = 0f;
         if (pass.Diffusion > 0f)
         {
             flux += Math.Min(pass.Diffusion * open, FaceLimit) * (lowerValue - upperValue);
         }
 
-        float steady = 0f;
         if (pass.Advects)
         {
-            float carried = courant * open;
             flux += carried > 0f ? carried * lowerValue : carried * upperValue;
-            steady = carried * other;
         }
 
-        if (flux == 0f)
+        return flux;
+    }
+
+    /// <summary>
+    /// For a sleeping chunk, what the active cell across a face held when the chunk fell asleep; null when the
+    /// chunk is awake (or transferring) or had no loaded neighbour there. Its cells settled against that value, so
+    /// only the flux that differs from the flux at that value crosses into it: a steady exchange, a drift it
+    /// passes on or water it drains as fast as it takes in, does not pile up at its border while it sleeps.
+    /// <paramref name="ownSideUpper"/> says the active cell stands on the chunk's positive side.
+    /// </summary>
+    private float? SettledAgainst(FieldChunk sleeping, int activeIndex, int axis, bool ownSideUpper, int quantity)
+    {
+        const int FaceCells = FieldChunk.Size * FieldChunk.Size;
+        int face = (axis * 2) + (ownSideUpper ? 1 : 0);
+        if (sleeping.Transferring || !sleeping.IsSettled || sleeping.Settled is not float[] settled || !sleeping.SettledFaces[face])
         {
-            return;
+            return null;
         }
 
-        chunk.Next[offset + index] += upper ? -flux : flux;
-        if (neighbour is not null)
-        {
-            // A sleeping neighbour is settled: it passes on the drift it takes in, as the outside does, so only
-            // what differs from that crosses into it.
-            float crossing = neighbour.Transferring ? flux : flux - steady;
-            neighbour.PrepareNext();
-            neighbour.Next[offset + neighbourIndex] += upper ? crossing : -crossing;
-        }
+        return settled[(((face * quantityCount) + quantity) * FaceCells) + FieldChunk.FaceCell(activeIndex, axis)];
     }
 
     /// <summary>
     /// Exchanges a quantity across the face between a lower cell and the upper cell next to it along an
     /// axis. Either side may lie outside the loaded region: that side is the ambient (its hold included), as
     /// conductive as the cell it faces, so the region's edge is open and a held region still confines there.
+    /// A sleeping side takes only what differs from the flux at the value it settled against (see Across).
     /// </summary>
     private void Face(FieldChunk? lower, int lowerIndex, FieldChunk? upper, int upperIndex, int axis, TransferPass pass)
     {
-        if (!pass.Advects && lower is not null && upper is not null
+        float? lowerSettled = lower is not null && upper is not null && lower != upper
+            ? SettledAgainst(lower, upperIndex, axis, ownSideUpper: true, pass.Quantity) : null;
+        float? upperSettled = lower is not null && upper is not null && lower != upper
+            ? SettledAgainst(upper, lowerIndex, axis, ownSideUpper: false, pass.Quantity) : null;
+        if (!pass.Advects && lower is not null && upper is not null && lowerSettled is null && upperSettled is null
             && lower.Values[pass.Offset + lowerIndex] == upper.Values[pass.Offset + upperIndex])
         {
             // Nothing diffuses between equal cells: most of a field sits at its ambient.
@@ -375,37 +396,32 @@ public sealed partial class ChemistryField
             return;
         }
 
-        float flux = 0f;
-        if (pass.Diffusion > 0f)
-        {
-            flux += Math.Min(pass.Diffusion * open, FaceLimit) * (lowerValue - upperValue);
-        }
-
         float courant = 0f;
         if (pass.Advects)
         {
             Vector3 point = lower is not null ? lower.CellAt(lowerIndex).Center : upper!.CellAt(upperIndex).Center - Axis(axis);
             courant = Math.Clamp(FaceVelocity(point + (Axis(axis) * 0.5f), axis, pass) * pass.Seconds, -FaceLimit, FaceLimit) * open;
-            flux += courant > 0f ? courant * lowerValue : courant * upperValue;
         }
 
-        if (flux == 0f)
-        {
-            return;
-        }
-
-        // A sleeping side is settled: it passes on the drift it takes in, as the outside does, so only what
-        // differs from that crosses into it (see Across).
+        float flux = Flux(lowerValue, upperValue, open, pass, courant);
         if (lower is not null)
         {
-            lower.PrepareNext();
-            lower.Next[pass.Offset + lowerIndex] -= lower.Transferring ? flux : flux - (courant * lowerValue);
+            float leaving = upperSettled is null && lowerSettled is float lowerWas ? flux - Flux(lowerValue, lowerWas, open, pass, courant) : flux;
+            if (leaving != 0f)
+            {
+                lower.PrepareNext();
+                lower.Next[pass.Offset + lowerIndex] -= leaving;
+            }
         }
 
         if (upper is not null)
         {
-            upper.PrepareNext();
-            upper.Next[pass.Offset + upperIndex] += upper.Transferring ? flux : flux - (courant * upperValue);
+            float arriving = upperSettled is float upperWas ? flux - Flux(upperWas, upperValue, open, pass, courant) : flux;
+            if (arriving != 0f)
+            {
+                upper.PrepareNext();
+                upper.Next[pass.Offset + upperIndex] += arriving;
+            }
         }
     }
 

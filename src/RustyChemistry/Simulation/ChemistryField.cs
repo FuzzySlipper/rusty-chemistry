@@ -627,10 +627,60 @@ public sealed partial class ChemistryField
                 else if (++chunk.QuietSteps >= SleepAfterQuietSteps)
                 {
                     chunk.Active = false;
+                    KeepSettled(chunk);
                 }
             }
 
             chunk.Touched = false;
+        }
+    }
+
+    /// <summary>
+    /// Keeps, as a chunk falls asleep, the values its neighbours hold next to it: its cells settled against them,
+    /// so transfer from an active neighbour later hands it only what differs from that (see Across).
+    /// </summary>
+    private void KeepSettled(FieldChunk chunk)
+    {
+        const int FaceCells = FieldChunk.Size * FieldChunk.Size;
+        float[] settled = chunk.Settled ??= new float[6 * quantityCount * FaceCells];
+        chunk.IsSettled = true;
+        ChunkKey key = chunk.Key;
+        for (int face = 0; face < 6; face++)
+        {
+            int axis = face / 2;
+            bool positive = face % 2 == 1;
+            int step = positive ? 1 : -1;
+            ChunkKey neighbourKey = axis switch
+            {
+                0 => key with { X = key.X + step },
+                1 => key with { Y = key.Y + step },
+                _ => key with { Z = key.Z + step },
+            };
+            chunk.SettledFaces[face] = chunkMap.TryGetValue(neighbourKey, out FieldChunk? neighbour);
+            if (neighbour is null)
+            {
+                continue;
+            }
+
+            // The neighbour's layer touching this chunk: its lowest along the axis on the positive side.
+            int layer = positive ? 0 : FieldChunk.Mask;
+            for (int a = 0; a < FieldChunk.Size; a++)
+            {
+                for (int b = 0; b < FieldChunk.Size; b++)
+                {
+                    int index = axis switch
+                    {
+                        0 => FieldChunk.Index(layer, a, b),
+                        1 => FieldChunk.Index(a, layer, b),
+                        _ => FieldChunk.Index(a, b, layer),
+                    };
+                    int cell = FieldChunk.FaceCell(index, axis);
+                    for (int quantity = 0; quantity < quantityCount; quantity++)
+                    {
+                        settled[(((face * quantityCount) + quantity) * FaceCells) + cell] = neighbour.Values[(quantity * CellCount) + index];
+                    }
+                }
+            }
         }
     }
 

@@ -349,6 +349,23 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
 
     Check.That(meadow.ActiveChunkCount == 0 && meadow.Quantity(new(5, 3, 5), wet) > 0.01f,
         $"a steady exchange between grass and soil must sleep ({settling} steps, soil under the grass at {meadow.Quantity(new(5, 3, 5), wet):0.000})");
+
+    // A stream along one chunk's edge wetting the soil of the next: once the soil has settled, the water chunk's
+    // steady flow must not pile up in it while it sleeps, waking it again and again.
+    ChemistryField bank = new(rest, new("stone"));
+    bank.Fill(new(0, 0, 0), new(31, 15, 15), rest.Material("soil"));
+    bank.Fill(new(15, 0, 0), new(15, 15, 15), rest.Material("water"));
+    int banked = 0;
+    while (bank.ActiveChunkCount > 0 && banked < 40000)
+    {
+        bank.Step();
+        banked++;
+    }
+
+    float soaked = bank.Quantity(new(16, 8, 8), wet);
+    Run(bank, 200);
+    Check.That(bank.ActiveChunkCount == 0 && soaked > 0.05f && Math.Abs(bank.Quantity(new(16, 8, 8), wet) - soaked) < 1e-4f,
+        $"soil beside a stream must settle and sleep, its edge holding still ({banked} steps, edge at {soaked:0.000})");
 }
 
 // --- residency: a whole chunk loads as cell-by-cell loading would; an unloaded chunk becomes open edge ---

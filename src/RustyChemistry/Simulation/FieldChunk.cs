@@ -65,7 +65,29 @@ internal sealed class FieldChunk
     /// </summary>
     internal bool Swapped { get; set; }
 
+    /// <summary>
+    /// While <see cref="IsSettled"/>: the values its neighbours held next to it when it fell asleep, per face
+    /// (axis × 2, + 1 on the positive side), quantity and cell of the face (<see cref="FaceCell"/>). Its cells
+    /// settled against those values, so an active neighbour hands it only what its own values moved since.
+    /// Kept between sleeps rather than allocated each time.
+    /// </summary>
+    internal float[]? Settled { get; set; }
+
+    /// <summary>Whether the chunk is asleep with <see cref="Settled"/> holding its neighbours' values from then.</summary>
+    internal bool IsSettled { get; set; }
+
+    /// <summary>Which faces <see cref="Settled"/> holds: a face with no loaded neighbour when the chunk fell asleep holds none.</summary>
+    internal bool[] SettledFaces { get; } = new bool[6];
+
     internal static int Index(int x, int y, int z) => x | (y << Shift) | (z << (2 * Shift));
+
+    /// <summary>A cell's place on a face across an axis, from its index: the two coordinates other than the axis.</summary>
+    internal static int FaceCell(int index, int axis) => axis switch
+    {
+        0 => (index >> Shift) & (Size * Size - 1),
+        1 => (index & Mask) | ((index >> (2 * Shift)) << Shift),
+        _ => index & (Size * Size - 1),
+    };
 
     internal static int Index(Cell cell) => Index(cell.X & Mask, cell.Y & Mask, cell.Z & Mask);
 
@@ -79,6 +101,7 @@ internal sealed class FieldChunk
         Active = true;
         Touched = true;
         QuietSteps = 0;
+        IsSettled = false;
     }
 
     internal void PrepareNext()

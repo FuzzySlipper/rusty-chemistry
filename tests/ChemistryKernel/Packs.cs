@@ -73,7 +73,7 @@ internal static class Packs
     }
     """;
 
-    /// <summary>Grass that rests at its own moisture over soil that drains toward the ambient.</summary>
+    /// <summary>Grass that rests at its own moisture, and water that stays wet, beside soil that drains toward the ambient.</summary>
     internal const string Rest = """
     {
       "quantities": [
@@ -82,6 +82,7 @@ internal static class Packs
       "materials": [
         { "id": "soil", "conduct": { "moisture": 0.5 } },
         { "id": "grass", "conduct": { "moisture": 0.5 }, "rest": { "moisture": { "to": 0.4, "settle": 1 } } },
+        { "id": "water", "conduct": { "moisture": 1 }, "rest": { "moisture": { "to": 1, "settle": 5 } } },
         { "id": "stone" }
       ]
     }
