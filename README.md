@@ -76,6 +76,7 @@ rusty build --aot
 | `src/ui/main.js` | DOM panel: tool, overlay and wind choices, field controls and stats |
 | `content/` | The physical and Q90 packs and each scene's looks, overlays and tools or channels |
 | `tests/ChemistryKernel/` | Headless checks of the kernel's operators |
+| `tests/ChemistryBench/` | The kernel's step cost on a player-sized window, with a result hash |
 | `Directory.Build.props` | Matched Engine SDK/runtime pin and default product project |
 | `docs/architecture.md` | Current ownership and data flow |
 | `docs/ui.md` | DOM companion contract |

@@ -61,6 +61,32 @@ internal static class Packs
     }
     """;
 
+    /// <summary>Warmth carried by the wind through open air.</summary>
+    internal const string Wind = """
+    {
+      "quantities": [
+        { "id": "heat", "ambient": 20, "epsilon": 0.01, "transfer": { "rate": 1, "drift": true } }
+      ],
+      "materials": [
+        { "id": "air", "sky": true, "conduct": { "heat": 0.5 } }
+      ]
+    }
+    """;
+
+    /// <summary>Grass that rests at its own moisture over soil that drains toward the ambient.</summary>
+    internal const string Rest = """
+    {
+      "quantities": [
+        { "id": "moisture", "max": 1, "settle": 0.2, "epsilon": 0.0001, "transfer": { "rate": 0.5 } }
+      ],
+      "materials": [
+        { "id": "soil", "conduct": { "moisture": 0.5 } },
+        { "id": "grass", "conduct": { "moisture": 0.5 }, "rest": { "moisture": { "to": 0.4, "settle": 1 } } },
+        { "id": "stone" }
+      ]
+    }
+    """;
+
     /// <summary>Charge that discharges through water, and a blast front that crosses air and brush but not stone.</summary>
     internal const string Impulse = """
     {

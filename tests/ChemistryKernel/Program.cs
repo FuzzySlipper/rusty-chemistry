@@ -291,6 +291,66 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
     Check.That(field.ActiveChunkCount == 0, $"the field must sleep again once the heat has settled ({steps} steps)");
 }
 
+// --- steady drift: a settled field under wind sleeps, and a sleeping chunk is not loaded up with what it passes on ---
+{
+    ChemistryPack wind = ChemistryPack.Read(Packs.Wind);
+    int warmth = wind.Quantity("heat");
+    ChemistryField field = new(wind, new("air"));
+    field.Fill(new(0, 0, 0), new(47, 15, 15), wind.Material("air"));
+    field.Drift = new Vector3(0.6f, 0f, 0f);
+    Run(field, 10);
+    Check.That(field.ActiveChunkCount == 0, "steady wind over a settled field must sleep");
+
+    // A warm spot upwind wakes its own chunk; the wind's steady inflow must not pile up at the sleeping
+    // chunk's edge before the warmth itself arrives.
+    field.SetQuantity(new(2, 8, 8), warmth, 200f);
+    Run(field, 20);
+    Check.That(field.IsActive(new(0, 0, 0)) && !field.IsActive(new(32, 0, 0)), "only the warm spot's chunk and those it reaches wake");
+    float edge = Box(new(16, 0, 0), new(16, 15, 15)).Max(cell => Math.Abs(field.Quantity(cell, warmth) - 20f));
+    Check.That(edge < 0.01f, $"the next chunk's edge must hold the ambient until the warmth arrives (off by {edge})");
+    int steps = 0;
+    while (field.ActiveChunkCount > 0 && steps < 20000)
+    {
+        field.Step();
+        steps++;
+    }
+
+    Check.That(field.ActiveChunkCount == 0, $"the field must sleep again once the warmth has blown through ({steps} steps)");
+}
+
+// --- rest: a material settles toward its own value; a steady exchange that changes nothing sleeps -------
+{
+    ChemistryPack rest = ChemistryPack.Read(Packs.Rest);
+    int wet = rest.Quantity("moisture");
+    // Inside one chunk of stone, which conducts nothing, so neither cell drains through the region's open edge.
+    ChemistryField pair = new(rest, new("stone"));
+    pair.Fill(new(0, 0, 0), new(15, 15, 15), rest.Material("stone"));
+    pair.Load(new(5, 5, 5), rest.Material("grass"));
+    pair.Load(new(9, 5, 5), rest.Material("soil"));
+    pair.SetQuantity(new(5, 5, 5), wet, 0.9f);
+    pair.SetQuantity(new(9, 5, 5), wet, 0.9f);
+    Run(pair, 200);
+    Check.Near(pair.Quantity(new(5, 5, 5), wet), 0.4, 0.01, "grass must settle to its own rest");
+    Check.That(pair.Quantity(new(9, 5, 5), wet) < 0.05f, "soil must settle toward the ambient");
+    pair.SetQuantity(new(5, 5, 5), wet, 0.05f);
+    Run(pair, 200);
+    Check.Near(pair.Quantity(new(5, 5, 5), wet), 0.4, 0.01, "grass must recover its own rest from below");
+
+    // Grass wets the soil under it and the soil drains: once the exchange is steady nothing changes, and it sleeps.
+    ChemistryField meadow = new(rest, new("stone"));
+    meadow.Fill(new(0, 0, 0), new(15, 3, 15), rest.Material("soil"));
+    meadow.Fill(new(0, 4, 0), new(15, 4, 15), rest.Material("grass"));
+    int settling = 0;
+    while (meadow.ActiveChunkCount > 0 && settling < 20000)
+    {
+        meadow.Step();
+        settling++;
+    }
+
+    Check.That(meadow.ActiveChunkCount == 0 && meadow.Quantity(new(5, 3, 5), wet) > 0.01f,
+        $"a steady exchange between grass and soil must sleep ({settling} steps, soil under the grass at {meadow.Quantity(new(5, 3, 5), wet):0.000})");
+}
+
 // --- residency: a whole chunk loads as cell-by-cell loading would; an unloaded chunk becomes open edge ---
 {
     ushort[] layout = new ushort[16 * 16 * 16];
@@ -355,6 +415,10 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
         "$.transforms[0].to", "must change identity");
     Rejects("""{ "quantities": [{ "id": "heat" }, { "id": "b" }], "materials": [{ "id": "air" }, { "id": "x" }], "transforms": [{ "id": "t", "from": ["air"], "to": "x", "resistedBy": "b", "when": [{ "open": true }] }] }""",
         "$.transforms[0]", "an immediate transform has none");
+    Rejects("""{ "quantities": [{ "id": "heat" }], "materials": [{ "id": "air", "rest": { "heat": { "to": 1, "speed": 2 } } }] }""",
+        "$.materials[0].rest.heat.speed", "unknown property");
+    Rejects("""{ "quantities": [{ "id": "heat" }], "materials": [{ "id": "air", "rest": { "heat": { "to": 1, "settle": -1 } } }] }""",
+        "$.materials[0].rest.heat", "settle must not be negative");
     Rejects("{ \"quantities\": [", "$", "");
     Check.That(fire.Modulators.SequenceEqual(["fire"]), "the fire pack must declare its one modulator");
 }

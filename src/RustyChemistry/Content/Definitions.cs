@@ -22,9 +22,18 @@ public sealed record TransferDefinition(float Rate, bool Drift, int? BlockedBy, 
 /// <summary>
 /// A cell identity. <see cref="Conductance"/> (0..1 per quantity) is how readily each quantity passes into
 /// and out of it; <see cref="Initial"/> is what a freshly loaded cell holds, the ambient where null;
-/// <see cref="Sky"/> says whether the open sky passes through it.
+/// <see cref="Rest"/> is what it settles toward instead of the ambient, where set; <see cref="Sky"/> says
+/// whether the open sky passes through it.
 /// </summary>
-public sealed record MaterialDefinition(string Id, bool Sky, ImmutableArray<float> Conductance, ImmutableArray<float?> Initial);
+public sealed record MaterialDefinition(string Id, bool Sky, ImmutableArray<float> Conductance, ImmutableArray<float?> Initial,
+    ImmutableArray<RestDefinition?> Rest);
+
+/// <summary>
+/// A material's own resting value for a quantity: its cells settle toward <see cref="To"/> at <see cref="Settle"/>
+/// per second, rather than toward the field's ambient at the quantity's rate. Living grass keeps its water this
+/// way, recovering what it loses and drying only while something dries it faster.
+/// </summary>
+public readonly record struct RestDefinition(float To, float Settle);
 
 public enum ConditionKind : byte
 {

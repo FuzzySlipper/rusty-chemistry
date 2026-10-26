@@ -59,6 +59,12 @@ internal sealed class FieldChunk
     /// <summary>Whether the chunk was active when this step's transfer began, so it owns its border faces.</summary>
     internal bool Transferring { get; set; }
 
+    /// <summary>
+    /// Whether transfer swapped the buffers this step: <see cref="Next"/> then holds the values from before
+    /// transfer, which the step's end compares against to tell whether the chunk changed.
+    /// </summary>
+    internal bool Swapped { get; set; }
+
     internal static int Index(int x, int y, int z) => x | (y << Shift) | (z << (2 * Shift));
 
     internal static int Index(Cell cell) => Index(cell.X & Mask, cell.Y & Mask, cell.Z & Mask);
@@ -88,5 +94,6 @@ internal sealed class FieldChunk
     {
         (Values, Next) = (Next, Values);
         NextReady = false;
+        Swapped = true;
     }
 }

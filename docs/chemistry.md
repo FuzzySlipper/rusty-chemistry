@@ -77,7 +77,9 @@ A pack declares:
   fuel, charge; or a channel's medium). Each has an ambient value, bounds, how
   fast it settles back toward ambient, and optionally how it transfers.
 - **Materials**: cell identities. Each lists its conductance per quantity
-  (0..1), the quantities it starts with, and whether the sky passes through it.
+  (0..1), the quantities it starts with, any quantity it rests at instead of
+  the ambient (`"rest": { "moisture": { "to": 0.4, "settle": 0.3 } }`: living
+  grass keeps its water), and whether the sky passes through it.
 - **Reactions**: continuous local conversion, for example "burning grass
   turns 1 fuel/s into 1200 heat and 2 smoke". These are limited by what is
   available, so nothing goes below its bound.
@@ -129,7 +131,8 @@ That is pacing, not a second clock. Each step runs in phases:
 2. **Transfer** diffuses and drifts every transferring quantity across cell
    faces, reading the current buffer and writing the next.
 3. **Reactions** convert quantities inside each cell.
-4. **Settle** relaxes quantities toward ambient.
+4. **Settle** relaxes quantities toward ambient, or toward a material's own
+   rest where it has one, at that rest's rate.
 5. **Transforms** switch identities, at most one per cell per step.
 6. **Discharges and fronts** resolve and advance.
 
@@ -160,10 +163,15 @@ open, and a test or adapter that wants a closed boundary loads a
 non-conducting layer.
 
 Only **active chunks** (16³ cells) are processed. A chunk wakes when it is
-written, overlapped by an emitter, reached by a discharge or front, or
-receives flux from an active neighbour. It sleeps after a few steps in which
-nothing in it changed and no transform was pending. A grass field costs
-nothing until it catches fire.
+written, overlapped by an emitter, reached by a discharge or front, or changed
+by flux from an active neighbour. It sleeps after a few steps in which no
+cell's value moved by more than its quantity's epsilon over the whole step and
+no transform was pending. That is net change: a settled region in steady wind
+passes on as much as it takes in, and grass wetting soil that drains leaves
+both as they were, so both sleep. A sleeping neighbour counts as settled, like
+the region's edge: it passes on the drift it takes in, so an active chunk
+hands it only what differs from that steady flow, and the wind's inflow does
+not pile up at its border. A grass field costs nothing until it catches fire.
 
 ### Emitters and modulators: the delivery layer
 
@@ -387,15 +395,24 @@ dotnet run -c Release --project tests/ChemistryKernel
 ```
 
 The checks end by timing a 64×64 meadow fire on a stone floor: 16 chunks, all
-active while it burns. On the development machine it takes about 1.7 ms per
-step, so about 17 ms per simulated second at 10 Hz. That is a record, not a
-gate.
+active while it burns. That is a record, not a gate.
+
+`tests/ChemistryBench` times a player-sized window (27 chunks of soil, a
+surface of grass, and air) still, windy and burning, over its first 30 s and
+again after five minutes, and hashes the field so an optimisation can be
+shown to leave results unchanged:
+
+```sh
+dotnet run -c Release --project tests/ChemistryBench
+```
 
 Known limits of this first cut:
 
-- An active chunk processes all 4096 cells. The only shortcut is skipping
-  faces between equal values. Dense air is the main cost, and per-quantity
-  activity or a narrower active set is the next lever if adapters need more.
+- An active chunk processes all 4096 cells. Faces inside a chunk, with no
+  hold or gathering emitter, take a fast path over its arrays; faces between
+  equal values, or empty ones under drift, are skipped. Per-quantity activity,
+  a narrower active set, vectorised passes or a worker thread are the next
+  levers if adapters need more.
 - Residency is the adapter's: `LoadChunk` loads a whole chunk from a
   material array and `UnloadChunk` drops one between steps, leaving open
   edge behind. The field keeps no policy of its own about what stays loaded.
@@ -406,6 +423,10 @@ Known limits of this first cut:
   per-step change drops below epsilon therefore stops where it is. Give such
   a quantity a small enough epsilon. craftsurvive's moisture evaporation
   needed 1e-4.
+- A rule that switches on below a threshold while something else pulls the
+  value back (grass drawing water at or below 0.4 moisture while it dries)
+  flips around the threshold and never sleeps. A material's `rest` settles
+  smoothly toward its value instead.
 - Transforms keep a cell's quantities except those they `set`. Loading a cell
   resets them to the material's initial values.
 

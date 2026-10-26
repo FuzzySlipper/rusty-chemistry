@@ -64,7 +64,7 @@ internal sealed class ChemistryPackReader
         Node[] materialNodes = NonEmpty(Required(root, "materials"));
         foreach (Node node in materialNodes)
         {
-            Object(node, "id", "sky", "conduct", "initial");
+            Object(node, "id", "sky", "conduct", "initial", "rest");
             Declare(materialIds, Required(node, "id"), materialIds.Count, "material");
         }
 
@@ -151,7 +151,23 @@ internal sealed class ChemistryPackReader
             }
         }
 
-        return new MaterialDefinition(id, Optional(node, "sky") is Node sky && Flag(sky), [.. conductance], [.. initial]);
+        RestDefinition?[] rest = new RestDefinition?[quantities.Count];
+        if (Optional(node, "rest") is Node restNode)
+        {
+            foreach ((int quantity, Node value) in QuantityEntries(restNode))
+            {
+                Object(value, "to", "settle");
+                float settle = OptionalNumber(value, "settle") ?? quantities[quantity].Settle;
+                if (settle < 0f)
+                {
+                    throw Error(value, "settle must not be negative");
+                }
+
+                rest[quantity] = new RestDefinition(InBounds(Required(value, "to"), quantity), settle);
+            }
+        }
+
+        return new MaterialDefinition(id, Optional(node, "sky") is Node sky && Flag(sky), [.. conductance], [.. initial], [.. rest]);
     }
 
     private ReactionRule Reaction(Node node)

@@ -31,13 +31,15 @@ public sealed partial class ChemistryField
 
     private readonly int quantityCount;
     private readonly float[] conductance;
+
+    /// <summary>Each quantity's conductance by material: the transfer loop's lookup.</summary>
+    private readonly float[][] conductanceOf;
     private readonly bool[] sky;
     private readonly float[] min;
     private readonly float[] max;
     private readonly float[] epsilon;
     private readonly float[] ambient;
-    private readonly float[] settleFactor;
-    private readonly int[] settling;
+    private readonly SettleRule[][] settlingFor;
     private readonly float[] modulators;
     private readonly int[][] reactionsFor;
     private readonly int[][] transformsFor;
@@ -51,6 +53,8 @@ public sealed partial class ChemistryField
     private readonly List<MaterialChange> materialChanges = [];
     private readonly List<Discharge> discharges = [];
     private readonly List<FrontArrival> arrivals = [];
+    private readonly List<FieldChunk> transferring = [];
+    private readonly List<int> expired = [];
     private int nextEmitter;
     private int nextFront;
     private Vector3 drift;
@@ -79,14 +83,13 @@ public sealed partial class ChemistryField
         max = [.. quantities.Select(quantity => quantity.Max)];
         epsilon = [.. quantities.Select(quantity => quantity.Epsilon)];
         ambient = [.. quantities.Select(quantity => quantity.Ambient)];
-        settleFactor = [.. quantities.Select(quantity => 1f - MathF.Exp(-quantity.Settle * settings.StepSeconds))];
-        settling = [.. Enumerable.Range(0, quantityCount).Where(quantity => settleFactor[quantity] > 0f)];
         modulators = [.. pack.Modulators.Select(_ => 1f)];
 
         conductance = new float[pack.Materials.Length * quantityCount];
         sky = new bool[pack.Materials.Length];
         reactionsFor = new int[pack.Materials.Length][];
         transformsFor = new int[pack.Materials.Length][];
+        settlingFor = new SettleRule[pack.Materials.Length][];
         for (int material = 0; material < pack.Materials.Length; material++)
         {
             MaterialDefinition definition = pack.Materials[material];
@@ -97,7 +100,15 @@ public sealed partial class ChemistryField
                 .Where(rule => pack.Reactions[rule].Materials.IsEmpty || pack.Reactions[rule].Materials.Contains(current))];
             transformsFor[material] = [.. Enumerable.Range(0, pack.Transforms.Length)
                 .Where(rule => pack.Transforms[rule].From.Contains(current))];
+            settlingFor[material] = [.. Enumerable.Range(0, quantityCount)
+                .Select(quantity => definition.Rest[quantity] is RestDefinition rest
+                    ? new SettleRule(quantity, Factor(rest.Settle), true, rest.To)
+                    : new SettleRule(quantity, Factor(quantities[quantity].Settle), false, 0f))
+                .Where(rule => rule.Factor > 0f)];
         }
+
+        conductanceOf = [.. Enumerable.Range(0, quantityCount).Select(quantity =>
+            Enumerable.Range(0, pack.Materials.Length).Select(material => conductance[(material * quantityCount) + quantity]).ToArray())];
     }
 
     public ChemistryPack Pack { get; }
@@ -441,7 +452,7 @@ public sealed partial class ChemistryField
 
     private void ApplyEmitters(float seconds)
     {
-        List<int> expired = [];
+        expired.Clear();
         foreach ((int id, EmitterState emitter) in emitters)
         {
             EmitterSpec spec = emitter.Spec;
@@ -478,10 +489,11 @@ public sealed partial class ChemistryField
                 React(chunk, index, Pack.Reactions[rule], seconds);
             }
 
-            foreach (int quantity in settling)
+            foreach (SettleRule settle in settlingFor[material])
             {
-                float value = chunk.Values[(quantity * CellCount) + index];
-                Change(chunk, quantity, index, (ambient[quantity] - value) * settleFactor[quantity]);
+                float value = chunk.Values[(settle.Quantity * CellCount) + index];
+                float toward = settle.OwnRest ? settle.Rest : ambient[settle.Quantity];
+                Change(chunk, settle.Quantity, index, (toward - value) * settle.Factor);
             }
 
             if (transformsFor[material].Length > 0)
@@ -493,15 +505,17 @@ public sealed partial class ChemistryField
 
     private void React(FieldChunk chunk, int index, ReactionRule rule, float seconds)
     {
-        if (!Holds(rule.Conditions, chunk, index))
-        {
-            return;
-        }
-
+        // The rate first: a rule switched off by its modulator, or with none of its per quantity, is skipped
+        // without testing its conditions.
         float extent = rule.Rate * Modulation(rule.Modulator) * seconds;
         if (rule.Per is int per)
         {
             extent *= Math.Max(0f, Value(chunk, per, index));
+        }
+
+        if (extent <= 0f || !Holds(rule.Conditions, chunk, index))
+        {
+            return;
         }
 
         foreach (QuantityAmount consumed in rule.Consumes)
@@ -594,6 +608,16 @@ public sealed partial class ChemistryField
     {
         foreach (FieldChunk chunk in chunks)
         {
+            if (chunk.Swapped)
+            {
+                if (Changed(chunk))
+                {
+                    chunk.Wake();
+                }
+
+                chunk.Swapped = false;
+            }
+
             if (chunk.Active)
             {
                 if (chunk.Touched)
@@ -610,14 +634,17 @@ public sealed partial class ChemistryField
         }
     }
 
-    /// <summary>Adds to a cell's quantity within its bounds; a change above epsilon keeps the chunk awake.</summary>
+    /// <summary>
+    /// Adds to a cell's quantity within its bounds; a change above epsilon keeps the chunk awake, unless transfer
+    /// swapped its buffers this step, when the step's end compares its values instead (<see cref="Changed"/>).
+    /// </summary>
     private void Change(FieldChunk chunk, int quantity, int index, float delta)
     {
         int at = (quantity * CellCount) + index;
         float before = chunk.Values[at];
         float after = Math.Clamp(before + delta, min[quantity], max[quantity]);
         chunk.Values[at] = after;
-        if (Math.Abs(after - before) > epsilon[quantity])
+        if (!chunk.Swapped && Math.Abs(after - before) > epsilon[quantity])
         {
             chunk.Touched = true;
         }
@@ -709,4 +736,10 @@ public sealed partial class ChemistryField
 
         internal float Remaining { get; set; } = spec.Lifetime;
     }
+
+    /// <summary>The share of the way to its target a settling value moves in one step, at a rate per second.</summary>
+    private float Factor(float settle) => 1f - MathF.Exp(-settle * Settings.StepSeconds);
+
+    /// <summary>How a material's cells settle one quantity: toward the ambient, or toward the material's own rest.</summary>
+    private readonly record struct SettleRule(int Quantity, float Factor, bool OwnRest, float Rest);
 }
