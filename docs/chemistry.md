@@ -168,10 +168,13 @@ by flux from an active neighbour. It sleeps after a few steps in which no
 cell's value moved by more than its quantity's epsilon over the whole step and
 no transform was pending. That is net change: a settled region in steady wind
 passes on as much as it takes in, and grass wetting soil that drains leaves
-both as they were, so both sleep. A sleeping neighbour counts as settled, like
-the region's edge: it passes on the drift it takes in, so an active chunk
-hands it only what differs from that steady flow, and the wind's inflow does
-not pile up at its border. A grass field costs nothing until it catches fire.
+both as they were, so both sleep. A chunk falling asleep keeps the values its
+neighbours hold next to it; an active neighbour then hands it only the flux
+that differs from the flux at those values. A steady exchange it was balancing
+(the wind it passes on, a stream wetting soil that drains as fast) therefore
+does not pile up at its border and wake it again, while a real change (a fire,
+a warm front) still crosses and wakes it. A grass field costs nothing until it
+catches fire.
 
 ### Emitters and modulators: the delivery layer
 
