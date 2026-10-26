@@ -366,6 +366,22 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
     Run(bank, 200);
     Check.That(bank.ActiveChunkCount == 0 && soaked > 0.05f && Math.Abs(bank.Quantity(new(16, 8, 8), wet) - soaked) < 1e-4f,
         $"soil beside a stream must settle and sleep, its edge holding still ({banked} steps, edge at {soaked:0.000})");
+
+    // Sealing the stream off (the water plane turned to stone, as a terrain edit reloads it) must wake the soil
+    // beside it, which settled against the water's flux: it dries, then sleeps again.
+    bank.Fill(new(15, 0, 0), new(15, 15, 15), rest.Material("stone"));
+    int drying = 0;
+    bool woke = false;
+    while ((bank.ActiveChunkCount > 0 || drying == 0) && drying < 40000)
+    {
+        bank.Step();
+        woke |= bank.IsActive(new(16, 8, 8));
+        drying++;
+    }
+
+    float dried = bank.Quantity(new(16, 8, 8), wet);
+    Check.That(woke && dried < soaked - 0.01f && bank.ActiveChunkCount == 0,
+        $"soil cut off from its stream must wake, dry and sleep again ({drying} steps, edge {soaked:0.000} -> {dried:0.000})");
 }
 
 // --- residency: a whole chunk loads as cell-by-cell loading would; an unloaded chunk becomes open edge ---

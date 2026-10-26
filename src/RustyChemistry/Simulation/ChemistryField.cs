@@ -174,6 +174,7 @@ public sealed partial class ChemistryField
         }
 
         chunk.Wake();
+        WakeAcross(chunk, index);
     }
 
     /// <summary>Loads every cell from <paramref name="from"/> to <paramref name="to"/>, inclusive.</summary>
@@ -219,6 +220,7 @@ public sealed partial class ChemistryField
         }
 
         chunk.Wake();
+        WakeNeighbours(chunk.Key);
     }
 
     /// <summary>
@@ -234,6 +236,7 @@ public sealed partial class ChemistryField
         }
 
         chunks.RemoveAt(chunks.BinarySearch(chunk, ByKey));
+        WakeNeighbours(chunk.Key);
         return true;
     }
 
@@ -261,6 +264,7 @@ public sealed partial class ChemistryField
         FieldChunk chunk = Loaded(cell, out int index);
         chunk.Values[(quantity * CellCount) + index] = Math.Clamp(value, min[quantity], max[quantity]);
         chunk.Wake();
+        WakeAcross(chunk, index);
     }
 
     public bool IsOpen(Cell cell) => TryLocate(cell, out FieldChunk? chunk, out int index) && chunk.Open[index];
@@ -270,6 +274,7 @@ public sealed partial class ChemistryField
         FieldChunk chunk = Loaded(cell, out int index);
         chunk.Open[index] = open;
         chunk.Wake();
+        WakeAcross(chunk, index);
     }
 
     /// <summary>
@@ -746,6 +751,7 @@ public sealed partial class ChemistryField
         chunkMap.Add(key, chunk);
         int at = chunks.BinarySearch(chunk, ByKey);
         chunks.Insert(~at, chunk);
+        WakeNeighbours(key);
         return chunk;
     }
 
@@ -757,6 +763,51 @@ public sealed partial class ChemistryField
 
     private FieldChunk Loaded(Cell cell, out int index) =>
         TryLocate(cell, out FieldChunk? chunk, out index) ? chunk : throw new ArgumentException($"cell {cell} is not loaded", nameof(cell));
+
+    /// <summary>
+    /// Wakes the loaded chunks across the faces a border cell touches: an edit there changes the exchange a
+    /// sleeping neighbour settled against (a source sealed off, a face closed or opened), which it would
+    /// otherwise never see, since transfer skips a closed face and a sleeping chunk takes only what differs.
+    /// </summary>
+    private void WakeAcross(FieldChunk chunk, int index)
+    {
+        ChunkKey key = chunk.Key;
+        int x = index & FieldChunk.Mask, y = (index >> FieldChunk.Shift) & FieldChunk.Mask, z = index >> (2 * FieldChunk.Shift);
+        WakeBorder(x, key with { X = key.X - 1 }, key with { X = key.X + 1 });
+        WakeBorder(y, key with { Y = key.Y - 1 }, key with { Y = key.Y + 1 });
+        WakeBorder(z, key with { Z = key.Z - 1 }, key with { Z = key.Z + 1 });
+
+        void WakeBorder(int along, ChunkKey lower, ChunkKey upper)
+        {
+            if (along == 0)
+            {
+                WakeLoaded(lower);
+            }
+            else if (along == FieldChunk.Mask)
+            {
+                WakeLoaded(upper);
+            }
+        }
+    }
+
+    /// <summary>Wakes the six chunks around one that was loaded, replaced or unloaded whole.</summary>
+    private void WakeNeighbours(ChunkKey key)
+    {
+        WakeLoaded(key with { X = key.X - 1 });
+        WakeLoaded(key with { X = key.X + 1 });
+        WakeLoaded(key with { Y = key.Y - 1 });
+        WakeLoaded(key with { Y = key.Y + 1 });
+        WakeLoaded(key with { Z = key.Z - 1 });
+        WakeLoaded(key with { Z = key.Z + 1 });
+    }
+
+    private void WakeLoaded(ChunkKey key)
+    {
+        if (chunkMap.TryGetValue(key, out FieldChunk? neighbour))
+        {
+            neighbour.Wake();
+        }
+    }
 
     private void WakeAll()
     {

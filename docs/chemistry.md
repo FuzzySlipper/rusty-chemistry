@@ -173,8 +173,11 @@ neighbours hold next to it; an active neighbour then hands it only the flux
 that differs from the flux at those values. A steady exchange it was balancing
 (the wind it passes on, a stream wetting soil that drains as fast) therefore
 does not pile up at its border and wake it again, while a real change (a fire,
-a warm front) still crosses and wakes it. A grass field costs nothing until it
-catches fire.
+a warm front) still crosses and wakes it. Writing a cell on a chunk's border
+(or loading, replacing or unloading a whole chunk) also wakes the loaded chunks
+across it, since the write can change or remove the exchange they settled
+against: a stream sealed off by stone leaves no flux to carry that news. A grass
+field costs nothing until it catches fire.
 
 ### Emitters and modulators: the delivery layer
 
