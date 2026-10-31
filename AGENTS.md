@@ -16,7 +16,7 @@ and architecture. `rusty --help` is the workflow reference. Ordinary builds
 consume the pinned package; verify capabilities against that pin (its release
 notes and API surface) rather than against Engine source at another revision.
 
-The user request and owning task define scope and acceptance. If work is tied
+Patch's request and owning task define scope and acceptance. If work is tied
 to Den, resolve that project's live guidance, task, and dependencies. Report
 failed reads; do not invent task state. Continue independently authorized work
 and pause only decisions that need unavailable authority.
