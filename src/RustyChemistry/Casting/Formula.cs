@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -15,8 +16,9 @@ namespace RustyChemistry.Casting;
 public sealed record Formula(string Id, string Label, FormulaStep[] Steps, float Delay = 0f, string? Detail = null,
     string[]? Trigrams = null)
 {
-    private static readonly JsonTypeInfo<Formula> Indented =
-        (JsonTypeInfo<Formula>)new JsonSerializerOptions(FormulaJson.Default.Options) { WriteIndented = true }.GetTypeInfo(typeof(Formula));
+    // Written for a person to read, so a hexagram's name stays its characters rather than escapes.
+    private static readonly JsonTypeInfo<Formula> Compact = Written(indented: false);
+    private static readonly JsonTypeInfo<Formula> Indented = Written(indented: true);
 
     public static Formula Read(string json)
     {
@@ -54,7 +56,7 @@ public sealed record Formula(string Id, string Label, FormulaStep[] Steps, float
         return formulas;
     }
 
-    public string Write() => JsonSerializer.Serialize(this, FormulaJson.Default.Formula);
+    public string Write() => JsonSerializer.Serialize(this, Compact);
 
     /// <summary>The formula as indented JSON, for a person to read or keep as content.</summary>
     public string WriteIndented() => JsonSerializer.Serialize(this, Indented);
@@ -73,6 +75,12 @@ public sealed record Formula(string Id, string Label, FormulaStep[] Steps, float
             pack.Quantity(step.Emit?.Quantity ?? step.Discharge?.Quantity ?? step.Front!.Quantity);
         }
     }
+
+    private static JsonTypeInfo<Formula> Written(bool indented) => (JsonTypeInfo<Formula>)new JsonSerializerOptions(FormulaJson.Default.Options)
+    {
+        WriteIndented = indented,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    }.GetTypeInfo(typeof(Formula));
 
     internal static void Require(bool holds, string path, string problem)
     {
