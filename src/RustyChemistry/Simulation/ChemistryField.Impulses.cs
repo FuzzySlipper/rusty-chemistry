@@ -20,11 +20,14 @@ public sealed partial class ChemistryField
     }
 
     /// <summary>
-    /// Starts a front from a cell: it advances <paramref name="speed"/> cells of path per second, entering a
-    /// cell costs one over that cell's conductance of the quantity (so it bends around what does not conduct
-    /// and slows through what barely does), and each cell it reaches takes
-    /// <paramref name="amplitude"/> × e^(−<paramref name="attenuation"/> × distance). It ends at
-    /// <paramref name="maxDistance"/> or where its deposit falls below the quantity's epsilon.
+    /// Starts a front from a cell: it advances <paramref name="speed"/> cells of path per second, and each cell it
+    /// reaches takes <paramref name="amplitude"/> × e^(−<paramref name="attenuation"/> × distance). Entering a cell
+    /// costs the origin's conductance of the quantity over that cell's (at least one): a front crosses what it started
+    /// in at full speed, slows through what conducts less, and bends around what does not conduct. A quantity's
+    /// conductances are diffusion rates, often far below one (heat in air), so pricing cells by them alone would
+    /// leave a front where it started. A front started where nothing conducts prices cells against the pack's most
+    /// conductive material. It ends at <paramref name="maxDistance"/> or where its deposit falls below the quantity's
+    /// epsilon.
     /// </summary>
     public int StartFront(Cell origin, int quantity, float amplitude, float speed, float attenuation, float maxDistance)
     {
@@ -34,7 +37,13 @@ public sealed partial class ChemistryField
             throw new ArgumentOutOfRangeException(nameof(amplitude), "a front needs a non-zero amplitude, a positive speed and reach, and attenuation not below zero");
         }
 
-        Front front = new(nextFront++, quantity, amplitude, speed, attenuation, maxDistance);
+        float medium = TryLocate(origin, out FieldChunk? chunk, out int index) ? Conductance(chunk, index, quantity) : 0f;
+        if (!(medium > 0f))
+        {
+            medium = MostConductance(quantity);
+        }
+
+        Front front = new(nextFront++, quantity, amplitude, speed, attenuation, maxDistance, medium);
         front.Frontier.Enqueue((origin, origin), (0f, front.Order++));
         fronts.Add(front);
         return front.Id;
@@ -120,7 +129,7 @@ public sealed partial class ChemistryField
                     continue;
                 }
 
-                float distance = priority.Distance + (1f / permeability);
+                float distance = priority.Distance + Math.Max(1f, front.Medium / permeability);
                 if (distance <= front.MaxDistance && Math.Abs(front.Amplitude * MathF.Exp(-front.Attenuation * distance)) >= epsilon[quantity])
                 {
                     front.Frontier.Enqueue((next, entry.Cell), (distance, front.Order++));
@@ -137,7 +146,19 @@ public sealed partial class ChemistryField
 
     private sealed record PendingDischarge(Cell Origin, int Quantity, float Amount, float MinConductance, int MaxCells);
 
-    private sealed class Front(int id, int quantity, float amplitude, float speed, float attenuation, float maxDistance)
+    /// <summary>The highest conductance any material of the pack has for a quantity (1 if none conducts it).</summary>
+    private float MostConductance(int quantity)
+    {
+        float most = 0f;
+        for (int material = 0; material < Pack.Materials.Length; material++)
+        {
+            most = Math.Max(most, conductance[(material * quantityCount) + quantity]);
+        }
+
+        return most > 0f ? most : 1f;
+    }
+
+    private sealed class Front(int id, int quantity, float amplitude, float speed, float attenuation, float maxDistance, float medium)
     {
         internal int Id { get; } = id;
 
@@ -150,6 +171,9 @@ public sealed partial class ChemistryField
         internal float Attenuation { get; } = attenuation;
 
         internal float MaxDistance { get; } = maxDistance;
+
+        /// <summary>The origin's conductance of the quantity: a cell conducting as well costs one cell of path.</summary>
+        internal float Medium { get; } = medium;
 
         internal float Radius { get; set; }
 

@@ -479,6 +479,20 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
     Check.That(meadow.Quantity(struck, heat) > before + 100f && caster.Pending == 0, "a cast must land once its delay has run on field time");
     Check.That(landed is [EmitOperation { Spec.Quantity: var landedQuantity }] && landedQuantity == heat, "the caster must report the operation that landed");
 
+    // Heat diffuses slowly through air, but a front of it started in the air still crosses the air at its speed.
+    ChemistryField open = new(fire, new("air", Seed: 7));
+    open.Fill(new(0, 0, 0), new(15, 0, 15), stone);
+    open.Fill(new(0, 1, 0), new(15, 1, 15), grass);
+    open.StartFront(new(8, 2, 8), heat, amplitude: 100f, speed: 40f, attenuation: 0f, maxDistance: 6f);
+    float reachedAir = 0f;
+    for (int step = 0; step < 20; step++)
+    {
+        open.Step();
+        reachedAir = Math.Max(reachedAir, open.FrontArrivals.Where(arrival => arrival.Cell.Y == 2).Select(arrival => arrival.Distance).DefaultIfEmpty(0f).Max());
+    }
+
+    Check.That(reachedAir >= 6f, $"a heat front started in air must cross six cells of air (reached {reachedAir})");
+
     BaguaGrammar grammar = BaguaGrammar.Read(TestGrammar(), fire, "grammar");
     HexagramDefinition fireUnderHeaven = grammar.Hexagram("heaven", "fire");
     Check.That(grammar.Compile(fireUnderHeaven).Write() == grammar.Compile(fireUnderHeaven).Write(), "compiling a hexagram must be deterministic");
