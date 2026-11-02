@@ -21,7 +21,37 @@ public sealed record Formula(string Id, string Label, FormulaStep[] Steps, float
     public static Formula Read(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        return JsonSerializer.Deserialize(json, FormulaJson.Default.Formula) ?? throw new ChemistryContentException("$", "empty formula");
+        try
+        {
+            return JsonSerializer.Deserialize(json, FormulaJson.Default.Formula) ?? throw new ChemistryContentException("$", "empty formula");
+        }
+        catch (JsonException error)
+        {
+            throw new ChemistryContentException("$", error.Message);
+        }
+    }
+
+    /// <summary>Reads a list of formulas, such as the ones a product ships, each checked against the pack.</summary>
+    public static IReadOnlyList<Formula> ReadList(string json, ChemistryPack pack, string path)
+    {
+        ArgumentNullException.ThrowIfNull(json);
+        Formula[] formulas;
+        try
+        {
+            formulas = JsonSerializer.Deserialize(json, FormulaJson.Default.FormulaArray) ?? throw new ChemistryContentException(path, "empty list");
+        }
+        catch (JsonException error)
+        {
+            throw new ChemistryContentException(path, error.Message);
+        }
+
+        Require(formulas.Select(formula => formula.Id).Distinct(StringComparer.Ordinal).Count() == formulas.Length, path, "two formulas share an id");
+        foreach (Formula formula in formulas)
+        {
+            formula.Check(pack, path);
+        }
+
+        return formulas;
     }
 
     public string Write() => JsonSerializer.Serialize(this, FormulaJson.Default.Formula);
