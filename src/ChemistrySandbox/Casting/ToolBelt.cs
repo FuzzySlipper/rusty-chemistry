@@ -1,17 +1,16 @@
 using ChemistrySandbox.Channels;
+using RustyChemistry.Casting;
 using RustyChemistry.Simulation;
 
 namespace ChemistrySandbox.Casting;
 
 /// <summary>
-/// The tools in reach, which one is in hand, and the casts on their way. A cast lands after its delay and
-/// its operations follow on field time: the caster advances only as the field steps, so a paused field
-/// holds them. With a <see cref="Resonance"/>, vivid casts chain and muted ones take the muted feel.
+/// The tools in reach, which one is in hand, and the shared caster their casts go through. With a
+/// <see cref="Resonance"/>, vivid casts chain and muted ones take the muted feel.
 /// </summary>
-internal sealed class Caster(IReadOnlyList<ICastTool> tools, Resonance? resonance)
+internal sealed class ToolBelt(IReadOnlyList<ICastTool> tools, Resonance? resonance)
 {
-    private readonly List<(double Due, CastOperation Operation)> pending = [];
-    private double now;
+    private readonly Caster caster = new();
     private double lastVivid = double.NegativeInfinity;
 
     internal IReadOnlyList<ICastTool> Tools { get; } = tools;
@@ -21,7 +20,7 @@ internal sealed class Caster(IReadOnlyList<ICastTool> tools, Resonance? resonanc
     internal Resonance? Resonance { get; } = resonance;
 
     /// <summary>Operations still to come, from casts not yet landed or still running.</summary>
-    internal int Pending => pending.Count;
+    internal int Pending => caster.Pending;
 
     internal bool Select(string id)
     {
@@ -52,41 +51,23 @@ internal sealed class Caster(IReadOnlyList<ICastTool> tools, Resonance? resonanc
                 feel = new CastFeel(muted.Strength, muted.Radius, muted.Delay);
                 tone = $"muted ({muted.Label.ToLowerInvariant()})";
             }
-            else if (now - lastVivid <= Resonance.Chain.Window)
+            else if (caster.Now - lastVivid <= Resonance.Chain.Window)
             {
                 feel = new CastFeel(Resonance.Chain.Strength, 1f, 0f);
                 tone = "vivid, chained";
-                lastVivid = now;
+                lastVivid = caster.Now;
             }
             else
             {
                 tone = "vivid";
-                lastVivid = now;
+                lastVivid = caster.Now;
             }
         }
 
-        CastPlan plan = tool.Plan(field, hit, above, feel);
-        double lands = now + (plan.Delay * feel.Delay);
-        foreach ((float at, CastOperation operation) in plan.Operations)
-        {
-            pending.Add((lands + at, operation));
-        }
-
+        CastPlan plan = caster.Cast(field, tool, new CastTarget(hit, above), feel);
         return tone.Length == 0 ? $"{tool.Label} {plan.Summary}" : $"{tool.Label}, {tone}: {plan.Summary}";
     }
 
     /// <summary>Moves cast time on by one field step, applying what falls due before the field steps.</summary>
-    internal void Advance(ChemistryField field, double seconds)
-    {
-        now += seconds;
-        pending.Sort((a, b) => a.Due.CompareTo(b.Due));
-        int due = pending.FindIndex(entry => entry.Due > now);
-        int count = due < 0 ? pending.Count : due;
-        foreach ((double _, CastOperation operation) in pending.Take(count))
-        {
-            operation.Apply(field);
-        }
-
-        pending.RemoveRange(0, count);
-    }
+    internal void Advance(ChemistryField field, double seconds) => caster.Advance(field, seconds);
 }

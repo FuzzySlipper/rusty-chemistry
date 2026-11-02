@@ -23,16 +23,16 @@
     { "quantity": "blast", "label": "Blast", "color": "#ffffff", "low": 1, "high": 40 }
   ],
   "tools": [
-    { "id": "torch", "label": "Torch", "at": "hit",
-      "emit": { "quantity": "heat", "radius": 1.2, "rate": 4000, "seconds": 0.6 } },
-    { "id": "water", "label": "Water", "at": "hit",
-      "emit": { "quantity": "moisture", "radius": 2.5, "rate": 3, "seconds": 1 } },
-    { "id": "lightning", "label": "Lightning", "at": "hit",
-      "discharge": { "quantity": "charge", "amount": 80, "minConductance": 0.5, "maxCells": 4000 } },
-    { "id": "blast", "label": "Blast", "at": "above",
-      "front": { "quantity": "blast", "amplitude": 100, "speed": 30, "attenuation": 0.25, "maxDistance": 10 } },
-    { "id": "smoke", "label": "Smoke bomb", "at": "above",
-      "emit": { "quantity": "smoke", "radius": 1.5, "rate": 15, "seconds": 3 } }
+    { "id": "torch", "label": "Torch",
+      "steps": [{ "anchor": "hit", "emit": { "quantity": "heat", "radius": 1.2, "rate": 4000, "seconds": 0.6 } }] },
+    { "id": "water", "label": "Water",
+      "steps": [{ "anchor": "hit", "emit": { "quantity": "moisture", "radius": 2.5, "rate": 3, "seconds": 1 } }] },
+    { "id": "lightning", "label": "Lightning",
+      "steps": [{ "anchor": "hit", "discharge": { "quantity": "charge", "amount": 80, "minConductance": 0.5, "maxCells": 4000 } }] },
+    { "id": "blast", "label": "Blast",
+      "steps": [{ "anchor": "above", "front": { "quantity": "blast", "amplitude": 100, "speed": 30, "attenuation": 0.25, "maxDistance": 10 } }] },
+    { "id": "smoke", "label": "Smoke bomb",
+      "steps": [{ "anchor": "above", "emit": { "quantity": "smoke", "radius": 1.5, "rate": 15, "seconds": 3 } }] }
   ],
   "windSpeed": 0.6
 }

@@ -1,8 +1,8 @@
 using System.Numerics;
 using ChemistrySandbox.Arena;
-using ChemistrySandbox.Casting;
 using ChemistrySandbox.Channels;
 using Rusty.Engine;
+using RustyChemistry.Casting;
 using RustyChemistry.Content;
 using RustyChemistry.Simulation;
 
@@ -25,7 +25,7 @@ internal sealed class Scene
 
         Tools = Content.Channels is ChannelContent channels
             ? [.. channels.Channels.Select(channel => (ICastTool)new ChannelTool(channel, channels, Pack))]
-            : [.. Content.Tools!.Select(tool => (ICastTool)new PhysicalTool(tool, Pack))];
+            : [.. Content.Tools!.Select(tool => (ICastTool)new FormulaTool(tool, Pack))];
         Resonance = Content.Channels is ChannelContent composed ? new Resonance(composed) : null;
     }
 

@@ -15,10 +15,11 @@ Chemistry kernel (Engine-free C#) -> sandbox adapters and policy (C#)
 | Path or service | Responsibility |
 | --- | --- |
 | `src/RustyChemistry/` | The chemistry kernel: pack reader, field, step, emitters, discharges, fronts |
+| `src/RustyChemistry/Casting/` | Casting shared with products: compiled formulas and their JSON, the caster that lands them on field time, the Bagua compiler |
 | `src/ChemistrySandbox/SandboxProduct.cs` | Lifecycle, step pacing on admitted time, input and command interpretation, debug commands, panel projection |
 | `src/ChemistrySandbox/Setup/` | Scenes: each scene's typed content and pack, its tools, and which layout builds its field |
 | `src/ChemistrySandbox/Arena/` | The physical arena and the Q90 machine room layouts, symptom readings, and the voxel mirror that writes identity changes back as Engine voxel edits |
-| `src/ChemistrySandbox/Casting/` | Cast plans, plain tools, and the caster that schedules casts on field time and applies vivid/muted feel |
+| `src/ChemistrySandbox/Casting/` | The tool belt: which tool is in hand, and the vivid/muted feel a cast takes through the shared caster |
 | `src/ChemistrySandbox/Channels/` | wardens-circuit channel composition (element × delivery × governance) and the Emperor's Horseman resonance |
 | `src/ChemistrySandbox/Overlay/` | Drawing one quantity as per-chunk meshes |
 | `src/ChemistrySandbox/Viewing/`, `Ui/` | The orbit camera and picking; the panel contract |

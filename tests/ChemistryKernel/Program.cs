@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using RustyChemistry.Casting;
 using RustyChemistry.Checks;
 using RustyChemistry.Content;
 using RustyChemistry.Simulation;
@@ -456,6 +457,75 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
     Check.That(fire.Modulators.SequenceEqual(["fire"]), "the fire pack must declare its one modulator");
 }
 
+// --- casting: a formula lands on field time, survives JSON, and the Bagua grammar compiles all 64 ----
+{
+    Formula torch = new("torch", "Torch", [new FormulaStep(FormulaStep.Hit, Emit: new EmitEffect("heat", 1.2f, 4000f, 0.6f))], Delay: 0.5f);
+    torch.Check(fire, "torch");
+    Check.That(Formula.Read(torch.Write()).Write() == torch.Write(), "a formula must survive its JSON unchanged");
+
+    ChemistryField meadow = new(fire, new("air", Seed: 7));
+    meadow.Fill(new(0, 0, 0), new(9, 0, 9), stone);
+    meadow.Fill(new(0, 1, 0), new(9, 1, 9), grass);
+    Caster caster = new();
+    Cell struck = new(5, 1, 5);
+    caster.Cast(meadow, new FormulaTool(torch, fire), new CastTarget(struck, struck.Offset(0, 1, 0)), CastFeel.Plain);
+    float before = meadow.Quantity(struck, heat);
+    caster.Advance(meadow, 0.4);
+    meadow.Step();
+    Check.That(meadow.Quantity(struck, heat) <= before + 1f && caster.Pending == 1, "a cast must not land before its delay");
+    caster.Advance(meadow, 0.2);
+    meadow.Step();
+    Check.That(meadow.Quantity(struck, heat) > before + 100f && caster.Pending == 0, "a cast must land once its delay has run on field time");
+
+    BaguaGrammar grammar = BaguaGrammar.Read(TestGrammar(), fire, "grammar");
+    HexagramDefinition fireUnderHeaven = grammar.Hexagram("heaven", "fire");
+    Check.That(grammar.Compile(fireUnderHeaven).Write() == grammar.Compile(fireUnderHeaven).Write(), "compiling a hexagram must be deterministic");
+    foreach (HexagramDefinition hexagram in grammar.Hexagrams)
+    {
+        Formula compiled = grammar.Compile(hexagram);
+        compiled.Check(fire, $"hexagram {hexagram.Number}");
+        Check.That(Formula.Read(compiled.Write()).Write() == compiled.Write(), $"hexagram {hexagram.Number} must survive its JSON");
+    }
+
+    float Rate(string upper, string lower) => grammar.Compile(grammar.Hexagram(upper, lower)).Steps[0].Emit!.Rate;
+    Check.That(Rate("heaven", "fire") > 0f && Rate("earth", "water") < 0f, "yang must add what an emit names and yin drain it");
+
+    // The compiled binary, without the grammar, casts as the grammar's formula does.
+    double Burnt(Formula formula)
+    {
+        ChemistryField field = new(fire, new("air", Seed: 11));
+        field.Fill(new(0, 0, 0), new(15, 0, 15), stone);
+        field.Fill(new(0, 1, 0), new(15, 1, 15), grass);
+        Caster cast = new();
+        Cell at = new(8, 1, 8);
+        cast.Cast(field, new FormulaTool(formula, fire), new CastTarget(at, at.Offset(0, 1, 0)), CastFeel.Plain);
+        for (int step = 0; step < 80; step++)
+        {
+            cast.Advance(field, field.Settings.StepSeconds);
+            field.Step();
+        }
+
+        return field.Total(heat);
+    }
+
+    Formula compiledFire = grammar.Compile(fireUnderHeaven);
+    double direct = Burnt(compiledFire);
+    Check.That(direct == Burnt(Formula.Read(compiledFire.Write())), "a formula read back from JSON must cast exactly as the compiled one");
+
+    bool refused = false;
+    try
+    {
+        BaguaGrammar.Read(TestGrammar().Replace("\"upper\": \"lake\", \"lower\": \"lake\"", "\"upper\": \"heaven\", \"lower\": \"heaven\"", StringComparison.Ordinal),
+            fire, "grammar");
+    }
+    catch (ChemistryContentException error) when (error.Problem.Contains("named twice", StringComparison.Ordinal))
+    {
+        refused = true;
+    }
+
+    Check.That(refused, "a grammar naming one pair twice must be refused");
+}
+
 // --- cost: a burning meadow, for the record rather than as a gate -----------------------------
 {
     ChemistryField field = new(fire, new("air", Seed: 1));
@@ -528,4 +598,28 @@ static List<(long Step, Cell Cell, int To)> Burn(ChemistryField field, int steps
     }
 
     return changes;
+}
+
+// Every trigram acts through one of the fire pack's quantities; the 64 pairs are numbered in order, not King Wen's.
+static string TestGrammar()
+{
+    (string Id, string Lines, string Inner)[] trigrams =
+    [
+        ("heaven", "111", """{ "operator": "front", "quantity": "heat", "amount": 200 }"""),
+        ("earth", "000", """{ "operator": "transfer", "quantity": "smoke", "amount": 1 }"""),
+        ("fire", "101", """{ "operator": "emit", "quantity": "heat", "amount": 2000 }"""),
+        ("water", "010", """{ "operator": "emit", "quantity": "moisture", "amount": 1 }"""),
+        ("thunder", "100", """{ "operator": "discharge", "quantity": "heat", "amount": 300 }"""),
+        ("wind", "011", """{ "operator": "front", "quantity": "smoke", "amount": 5 }"""),
+        ("lake", "110", """{ "operator": "transfer", "quantity": "moisture", "amount": 1 }"""),
+        ("mountain", "001", """{ "operator": "emit", "quantity": "bind", "amount": 10 }"""),
+    ];
+    const string Outer = """{ "anchor": "hit", "radius": 2, "strength": 1, "delay": 0.2, "reach": 6, "seconds": 2, "repeats": 2, "frontSpeed": 10 }""";
+    IEnumerable<string> trigramJson = trigrams.Select(trigram =>
+        $$"""  "{{trigram.Id}}": { "lines": "{{trigram.Lines}}", "glyph": "?", "name": "{{trigram.Id}}", "inner": [{{trigram.Inner}}], "outer": {{Outer}} }""");
+    IEnumerable<string> balance = Enumerable.Range(0, BaguaGrammar.BalanceCount).Select(yang =>
+        $$"""{ "label": "{{yang}} yang", "rate": {{(yang - 2) * 0.5f}}, "gather": {{(3 - yang) * 0.3f}}, "strength": 1 }""");
+    IEnumerable<string> hexagrams = trigrams.SelectMany(upper => trigrams.Select(lower => (upper.Id, lower.Id)))
+        .Select((pair, index) => $$"""{ "number": {{index + 1}}, "name": "h{{index + 1}}", "upper": "{{pair.Item1}}", "lower": "{{pair.Item2}}" }""");
+    return $$"""{ "trigrams": { {{string.Join(",\n", trigramJson)}} }, "balance": [{{string.Join(", ", balance)}}], "hexagrams": [{{string.Join(",\n", hexagrams)}}] }""";
 }

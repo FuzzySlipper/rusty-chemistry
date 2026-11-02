@@ -436,6 +436,30 @@ Known limits of this first cut:
 - Transforms keep a cell's quantities except those they `set`. Loading a cell
   resets them to the material's initial values.
 
+## Casting as built
+
+`src/RustyChemistry/Casting/` is shared by the sandbox and craftsurvive. It
+references no Engine type.
+
+- A **formula** (`Formula.cs`) is a compiled cast: timed steps, each one
+  emit, discharge or front at the struck cell (`hit`) or the open cell in
+  front of it (`above`). It names quantities by id and reads and writes as
+  JSON. It needs nothing it was composed from, so it is what a relic can
+  carry: in craftsurvive's direction (atlas, 2026-11-01), development has
+  the compiler and the game may ship only compiled formulas.
+- The **caster** (`Caster.cs`) lands each cast after its delay and applies
+  its operations on field time, before each field step. It keeps no clock
+  of its own, so a paused field holds its casts.
+- The **Bagua compiler** (`Bagua.cs`) compiles any of the 64 hexagrams by
+  one rule. The lower (inner) trigram says what acts: operators and
+  quantities. The upper (outer) trigram says how it reaches the world:
+  anchor, radius, strength, delay, reach and tempo. The count of yang lines
+  across both picks a balance that signs and scales the result: yin draws in
+  and drains, yang adds and spreads. The grammar is content written against
+  one pack (craftsurvive's is `content/game/chemistry/bagua.json`), with the
+  King Wen numbers and names. Q90's channels stay the sandbox's own
+  composition; this one follows the classical reading rather than Q90's.
+
 ## Sandbox as built
 
 `src/ChemistrySandbox/` is the Engine product (`rusty dev`). It draws a
@@ -459,10 +483,10 @@ dropped, not owed.
   - around opaque voxels, a tinted shell shows the value inside;
   - inside translucent voxels (water), cubes are opaque, so they draw the same
     under the surface in every chunk.
-- `Casting/` turns a click into a cast plan: an emitter, a discharge or a
-  front for a plain tool, or a composed channel (below). The caster lands
-  each plan after its delay and applies its operations before each field
-  step.
+- `Casting/ToolBelt.cs` holds the scene's tools and the one in hand. A plain
+  tool is a formula (see "Casting as built"); a channel composes its plan
+  (below). Casts go through the kernel's shared caster, with the Emperor's
+  vivid or muted feel.
 - `Viewing/OrbitCamera.cs` orbits, pans and zooms, and turns the cursor into
   a pick ray for `Spatial.PickVoxel`.
 - `Ui/` and `src/ui/main.js` form the panel. It switches scenes and chooses

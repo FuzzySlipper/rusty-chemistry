@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChemistrySandbox.Channels;
 using Rusty.Engine;
+using RustyChemistry.Casting;
 using RustyChemistry.Content;
 using EngineColor = Rusty.Engine.Color;
 
@@ -22,8 +23,8 @@ internal sealed record SceneEntry(string Id, string Label, string File);
 
 /// <summary>
 /// One scene's authored setup and the chemistry pack it names: which layout builds the field, how each
-/// material looks, which quantities the overlay can show, and what the player can do: plain
-/// <see cref="Tools"/>, or <see cref="Channels"/> composed from their trigrams.
+/// material looks, which quantities the overlay can show, and what the player can do: <see cref="Tools"/>,
+/// formulas cast as they are, or <see cref="Channels"/> composed from their trigrams.
 /// </summary>
 internal sealed record SceneContent(
     string Pack,
@@ -31,7 +32,7 @@ internal sealed record SceneContent(
     ulong Seed,
     Dictionary<string, MaterialLook> Materials,
     OverlayDefinition[] Overlays,
-    ToolDefinition[]? Tools = null,
+    Formula[]? Tools = null,
     ChannelContent? Channels = null,
     float WindSpeed = 0f)
 {
@@ -62,15 +63,9 @@ internal sealed record SceneContent(
             throw new InvalidDataException($"{path}: a scene has either tools or channels");
         }
 
-        foreach (ToolDefinition tool in Tools ?? [])
+        foreach (Formula tool in Tools ?? [])
         {
-            int effects = (tool.Emit is null ? 0 : 1) + (tool.Discharge is null ? 0 : 1) + (tool.Front is null ? 0 : 1);
-            if (effects != 1)
-            {
-                throw new InvalidDataException($"{path}: tool '{tool.Id}' needs exactly one of emit, discharge or front");
-            }
-
-            pack.Quantity(tool.Emit?.Quantity ?? tool.Discharge?.Quantity ?? tool.Front!.Quantity);
+            tool.Check(pack, path);
         }
 
         Channels?.Check(pack, path);
@@ -102,19 +97,6 @@ internal sealed record MaterialLook(string Color, float Alpha = 1f, string? Emis
 /// <see cref="Below"/>, it shows how far the value falls under its ambient instead.
 /// </summary>
 internal sealed record OverlayDefinition(string Quantity, string Label, string Color, float Low, float High, bool Below = false);
-
-/// <summary>
-/// What a click does. <see cref="At"/> is <c>hit</c> for the clicked cell or <c>above</c> for the open cell in front
-/// of the clicked face. Exactly one effect is set.
-/// </summary>
-internal sealed record ToolDefinition(string Id, string Label, string At, EmitTool? Emit = null, DischargeTool? Discharge = null,
-    FrontTool? Front = null);
-
-internal sealed record EmitTool(string Quantity, float Radius, float Rate, float Seconds);
-
-internal sealed record DischargeTool(string Quantity, float Amount, float MinConductance, int MaxCells);
-
-internal sealed record FrontTool(string Quantity, float Amplitude, float Speed, float Attenuation, float MaxDistance);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, ReadCommentHandling = JsonCommentHandling.Skip,

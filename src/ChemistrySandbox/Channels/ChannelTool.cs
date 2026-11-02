@@ -1,5 +1,5 @@
 using System.Globalization;
-using ChemistrySandbox.Casting;
+using RustyChemistry.Casting;
 using RustyChemistry.Content;
 using RustyChemistry.Simulation;
 
@@ -31,8 +31,9 @@ internal sealed class ChannelTool(ChannelDefinition channel, ChannelContent cont
 
     public IReadOnlyList<string> Trigrams { get; } = [channel.Upper, channel.Lower];
 
-    public CastPlan Plan(ChemistryField field, Cell hit, Cell above, CastFeel feel)
+    public CastPlan Plan(ChemistryField field, CastTarget target, CastFeel feel)
     {
+        (Cell hit, Cell above) = (target.Hit, target.Above);
         (string deliveryId, string elementId) = channel.Composition;
         ElementProfile element = content.Elements[elementId];
         DeliveryProfile delivery = content.Deliveries[deliveryId];

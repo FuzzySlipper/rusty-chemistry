@@ -11,6 +11,7 @@ using ChemistrySandbox.Viewing;
 using Rusty.Engine;
 using Rusty.Engine.Debugging;
 using Rusty.Engine.Input;
+using RustyChemistry.Casting;
 using RustyChemistry.Simulation;
 
 namespace ChemistrySandbox;
@@ -48,7 +49,7 @@ public sealed class SandboxProduct : IEngineProduct, IDebugCommandModuleSource, 
     private Scene scene;
     private VoxelMirror voxels;
     private QuantityOverlay overlay;
-    private Caster caster;
+    private ToolBelt caster;
     private ChemistryField field;
     private IReadOnlyList<Symptom> symptoms;
     private int[] counts;
@@ -73,7 +74,7 @@ public sealed class SandboxProduct : IEngineProduct, IDebugCommandModuleSource, 
         camera = new OrbitCamera(engine, scene.CameraHome);
         voxels = new VoxelMirror(engine, scene.Pack, scene.Content.Materials);
         overlay = new QuantityOverlay(engine);
-        caster = new Caster(scene.Tools, scene.Resonance);
+        caster = new ToolBelt(scene.Tools, scene.Resonance);
         (field, symptoms) = scene.Build();
         counts = new int[scene.Pack.Materials.Length];
         shown = scene.Content.Overlays.FirstOrDefault();
@@ -213,7 +214,7 @@ public sealed class SandboxProduct : IEngineProduct, IDebugCommandModuleSource, 
         }
 
         Cell cell = new(x, y, z);
-        CastPlan plan = found.Plan(field, cell, cell.Offset(0, 1, 0), CastFeel.Plain);
+        CastPlan plan = found.Plan(field, new CastTarget(cell, cell.Offset(0, 1, 0)), CastFeel.Plain);
         return string.Create(CultureInfo.InvariantCulture,
             $"{found.Label} ({(caster.IsVivid(found) ? "vivid" : "muted")}): {plan.Summary}; lands after {plan.Delay:0.##}s, {plan.Operations.Count} operation(s)");
     }
@@ -340,7 +341,7 @@ public sealed class SandboxProduct : IEngineProduct, IDebugCommandModuleSource, 
         shown = scene.Content.Overlays.FirstOrDefault();
         wind = "calm";
         camera.Reset(scene.CameraHome);
-        caster = new Caster(scene.Tools, scene.Resonance);
+        caster = new ToolBelt(scene.Tools, scene.Resonance);
         Reset();
     }
 
@@ -349,7 +350,7 @@ public sealed class SandboxProduct : IEngineProduct, IDebugCommandModuleSource, 
         (field, symptoms) = scene.Build();
         field.Drift = Drift();
         string tool = caster.Current.Id;
-        caster = new Caster(scene.Tools, scene.Resonance);
+        caster = new ToolBelt(scene.Tools, scene.Resonance);
         caster.Select(tool);
         owed = 0;
         last = caster.Resonance is null ? "Pick a tool, then click the arena." : "Pick a channel, then click a symptom.";
