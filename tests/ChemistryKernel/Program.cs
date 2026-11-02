@@ -470,12 +470,14 @@ int douse = fire.Transforms.IndexOf(fire.Transforms.Single(rule => rule.Id == "d
     Cell struck = new(5, 1, 5);
     caster.Cast(meadow, new FormulaTool(torch, fire), new CastTarget(struck, struck.Offset(0, 1, 0)), CastFeel.Plain);
     float before = meadow.Quantity(struck, heat);
-    caster.Advance(meadow, 0.4);
+    List<CastOperation> landed = [];
+    caster.Advance(meadow, 0.4, landed);
     meadow.Step();
-    Check.That(meadow.Quantity(struck, heat) <= before + 1f && caster.Pending == 1, "a cast must not land before its delay");
-    caster.Advance(meadow, 0.2);
+    Check.That(meadow.Quantity(struck, heat) <= before + 1f && caster.Pending == 1 && landed.Count == 0, "a cast must not land before its delay");
+    caster.Advance(meadow, 0.2, landed);
     meadow.Step();
     Check.That(meadow.Quantity(struck, heat) > before + 100f && caster.Pending == 0, "a cast must land once its delay has run on field time");
+    Check.That(landed is [EmitOperation { Spec.Quantity: var landedQuantity }] && landedQuantity == heat, "the caster must report the operation that landed");
 
     BaguaGrammar grammar = BaguaGrammar.Read(TestGrammar(), fire, "grammar");
     HexagramDefinition fireUnderHeaven = grammar.Hexagram("heaven", "fire");

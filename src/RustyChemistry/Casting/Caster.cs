@@ -31,8 +31,11 @@ public sealed class Caster
         return plan;
     }
 
-    /// <summary>Moves cast time on by one field step, applying what falls due; call it before the field steps.</summary>
-    public void Advance(ChemistryField field, double seconds)
+    /// <summary>
+    /// Moves cast time on by one field step, applying what falls due; call it before the field steps. Each operation
+    /// applied is added to <paramref name="landed"/>, if given, so a host can show where casts land.
+    /// </summary>
+    public void Advance(ChemistryField field, double seconds, ICollection<CastOperation>? landed = null)
     {
         ArgumentNullException.ThrowIfNull(field);
         Now += seconds;
@@ -47,6 +50,7 @@ public sealed class Caster
         for (int index = 0; index < count; index++)
         {
             pending[index].Operation.Apply(field);
+            landed?.Add(pending[index].Operation);
         }
 
         pending.RemoveRange(0, count);
